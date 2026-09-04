@@ -1,0 +1,387 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+import {
+  TILES,
+  TOTAL_TILES,
+  SET_COMPOSITION,
+  TILES_BY_ID,
+  bonusTileSeat,
+  advanceRound,
+  INITIAL_ROUND,
+  seatWindForPlayer,
+  resolveClaims,
+  canClaimChow,
+  term,
+  termWithEnglish,
+  TERMS,
+  faanToUnits,
+  hongKongPayout,
+  taiToAmount,
+  taiwanesePayout,
+  createScorekeeper,
+  scorekeeperReducer,
+  totals,
+  standings,
+  SCORING_BY_RULESET,
+} from './index'
+
+// ---------------------------------------------------------------------------
+// Portability contract (spec §7.1) — this is the test that keeps the promise.
+// ---------------------------------------------------------------------------
+
+const FORBIDDEN_IN_CORE = ['react', 'react-dom', '@mantine/', 'react-native']
+
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const path = join(dir, entry)
+    return statSync(path).isDirectory() ? walk(path) : [path]
+  })
+}
+
+describe('core stays portable', () => {
+  it('never imports a rendering framework', () => {
+    const offenders: string[] = []
+    for (const file of walk(join(process.cwd(), 'src/core'))) {
+      if (!file.endsWith('.ts') || file.endsWith('.test.ts')) continue
+      const source = readFileSync(file, 'utf8')
+      for (const match of source.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
+        const specifier = match[1]!
+        if (FORBIDDEN_IN_CORE.some((banned) => specifier === banned || specifier.startsWith(banned))) {
+          offenders.push(`${file} imports ${specifier}`)
+        }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tiles
+// ---------------------------------------------------------------------------
+
+describe('tile data', () => {
+  it('describes a standard 144-tile set', () => {
+    expect(TOTAL_TILES).toBe(144)
+    expect(SET_COMPOSITION.reduce((n, g) => n + g.count, 0)).toBe(144)
+  })
+
+  it('has 42 distinct tiles: 27 suited, 7 honours, 8 bonus', () => {
+    expect(TILES).toHaveLength(42)
+    expect(TILES.filter((t) => t.kind === 'suit')).toHaveLength(27)
+    expect(TILES.filter((t) => t.kind === 'wind' || t.kind === 'dragon')).toHaveLength(7)
+    expect(TILES.filter((t) => t.kind === 'flower' || t.kind === 'season')).toHaveLength(8)
+  })
+
+  it('total copies match the set composition', () => {
+    expect(TILES.reduce((n, t) => n + t.copies, 0)).toBe(144)
+  })
+
+  it('gives every tile a unique id and a recognition hint', () => {
+    expect(Object.keys(TILES_BY_ID)).toHaveLength(TILES.length)
+    expect(TILES.every((t) => t.recognition.length > 0)).toBe(true)
+  })
+
+  it('calls out 1 Bamboo as a bird, not a stick', () => {
+    expect(TILES_BY_ID['b1']!.recognition).toMatch(/bird/i)
+  })
+
+  it('maps numbered bonus tiles to seat winds', () => {
+    expect(bonusTileSeat(TILES_BY_ID['f1']!)).toBe('east')
+    expect(bonusTileSeat(TILES_BY_ID['s4']!)).toBe('north')
+    expect(bonusTileSeat(TILES_BY_ID['b5']!)).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Terminology
+// ---------------------------------------------------------------------------
+
+describe('terminology', () => {
+  it('resolves the same key across languages and scripts', () => {
+    expect(term('pung', { language: 'en', script: 'romanized' })).toBe('Pung')
+    expect(term('pung', { language: 'cantonese', script: 'characters' })).toBe('碰')
+    expect(term('pung', { language: 'mandarin', script: 'romanized' })).toBe('pèng')
+  })
+
+  it('falls back to the key rather than rendering blank', () => {
+    expect(term('not-a-real-term', { language: 'cantonese', script: 'characters' })).toBe('not-a-real-term')
+  })
+
+  it('pairs a non-English term with its English name', () => {
+    expect(termWithEnglish('kong', { language: 'cantonese', script: 'characters' })).toBe('槓 (Kong)')
+    expect(termWithEnglish('kong', { language: 'en', script: 'romanized' })).toBe('Kong')
+  })
+
+  it('has every language filled in for every entry', () => {
+    for (const entry of Object.values(TERMS)) {
+      expect(entry.en).toBeTruthy()
+      expect(entry.cantonese.romanized).toBeTruthy()
+      expect(entry.cantonese.characters).toBeTruthy()
+      expect(entry.mandarin.romanized).toBeTruthy()
+      expect(entry.mandarin.characters).toBeTruthy()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Turn flow
+// ---------------------------------------------------------------------------
+
+describe('round tracker', () => {
+  it('keeps the deal when the dealer wins', () => {
+    const next = advanceRound(INITIAL_ROUND, { type: 'win', winnerSeat: 0 })
+    expect(next.dealerSeat).toBe(0)
+    expect(next.dealerStreak).toBe(1)
+  })
+
+  it('passes the deal counter-clockwise when someone else wins', () => {
+    const next = advanceRound(INITIAL_ROUND, { type: 'win', winnerSeat: 2 })
+    expect(next.dealerSeat).toBe(1)
+    expect(next.dealerStreak).toBe(0)
+    expect(next.roundWind).toBe('east')
+  })
+
+  it('advances the round wind once the deal returns to the starting seat', () => {
+    let state = INITIAL_ROUND
+    for (let i = 0; i < 4; i += 1) {
+      state = advanceRound(state, { type: 'win', winnerSeat: (state.dealerSeat + 1) % 4 })
+    }
+    expect(state.dealerSeat).toBe(0)
+    expect(state.roundWind).toBe('south')
+  })
+
+  it('honours the house rule for a washout', () => {
+    expect(advanceRound(INITIAL_ROUND, { type: 'draw' }).dealerSeat).toBe(0)
+    expect(
+      advanceRound(INITIAL_ROUND, { type: 'draw' }, { dealerKeepsDealOnDraw: false }).dealerSeat,
+    ).toBe(1)
+  })
+
+  it('assigns seat winds relative to the current dealer', () => {
+    expect(seatWindForPlayer(0, 0)).toBe('east')
+    expect(seatWindForPlayer(1, 0)).toBe('south')
+    // Dealer moves to seat 2 — seat 2 is now East.
+    expect(seatWindForPlayer(2, 2)).toBe('east')
+    expect(seatWindForPlayer(0, 2)).toBe('west')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Claims
+// ---------------------------------------------------------------------------
+
+describe('claim resolution', () => {
+  it('only lets the next player in turn order chow', () => {
+    expect(canClaimChow(0, 1)).toBe(true)
+    expect(canClaimChow(0, 2)).toBe(false)
+    expect(canClaimChow(3, 0)).toBe(true)
+  })
+
+  it('lets a win beat a pung', () => {
+    const winner = resolveClaims(0, [
+      { seat: 1, claim: 'pung' },
+      { seat: 3, claim: 'win' },
+    ])
+    expect(winner).toEqual({ seat: 3, claim: 'win' })
+  })
+
+  it('lets a pung beat a chow even when the chow player is next', () => {
+    const winner = resolveClaims(0, [
+      { seat: 1, claim: 'chow' },
+      { seat: 2, claim: 'pung' },
+    ])
+    expect(winner).toEqual({ seat: 2, claim: 'pung' })
+  })
+
+  it('breaks ties by nearest seat after the discarder', () => {
+    const winner = resolveClaims(3, [
+      { seat: 2, claim: 'win' },
+      { seat: 0, claim: 'win' },
+    ])
+    expect(winner).toEqual({ seat: 0, claim: 'win' })
+  })
+
+  it('discards an illegal chow claim', () => {
+    expect(resolveClaims(0, [{ seat: 2, claim: 'chow' }])).toBeUndefined()
+  })
+
+  it('returns nothing when nobody claims', () => {
+    expect(resolveClaims(0, [])).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Scoring and payout
+// ---------------------------------------------------------------------------
+
+describe('hong kong payout', () => {
+  it('matches the published anchor: a 10-faan limit hand is 128 units at a 3-faan minimum', () => {
+    expect(faanToUnits(10)).toBe(128)
+  })
+
+  it('doubles per faan above the minimum', () => {
+    expect(faanToUnits(3)).toBe(1)
+    expect(faanToUnits(4)).toBe(2)
+    expect(faanToUnits(5)).toBe(4)
+    expect(faanToUnits(6)).toBe(8)
+  })
+
+  it('clamps at the limit and at the minimum', () => {
+    expect(faanToUnits(13)).toBe(faanToUnits(10))
+    expect(faanToUnits(1)).toBe(1)
+  })
+
+  it('charges only the discarder under the modern convention', () => {
+    const payout = hongKongPayout({ faan: 4, winnerSeat: 0, discarderSeat: 2 })
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 0, 2: 2, 3: 0 })
+    expect(payout.winnerReceives).toBe(2)
+  })
+
+  it('charges all three on a self-draw', () => {
+    const payout = hongKongPayout({ faan: 4, winnerSeat: 0 })
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 2, 2: 2, 3: 2 })
+    expect(payout.winnerReceives).toBe(6)
+  })
+
+  it('supports the classical discarder-pays-double convention', () => {
+    const payout = hongKongPayout({
+      faan: 4,
+      winnerSeat: 0,
+      discarderSeat: 2,
+      rules: { minimumFaan: 3, limitFaan: 10, discardPayment: 'discarderDouble' },
+    })
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 2, 2: 4, 3: 2 })
+    expect(payout.winnerReceives).toBe(8)
+  })
+})
+
+describe('taiwanese payout', () => {
+  it('matches the worked example from the sources: base 3, factor 2, 5 tai = 13', () => {
+    expect(taiToAmount(5)).toBe(13)
+  })
+
+  it('charges the discarder alone', () => {
+    const payout = taiwanesePayout({ tai: 5, winnerSeat: 1, discarderSeat: 3 })
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 0, 2: 0, 3: 13 })
+    expect(payout.winnerReceives).toBe(13)
+  })
+
+  it('charges all three on a self-draw', () => {
+    const payout = taiwanesePayout({ tai: 5, winnerSeat: 1 })
+    expect(payout.winnerReceives).toBe(39)
+  })
+})
+
+describe('scoring tables', () => {
+  it('carries sources on every single pattern (spec §8)', () => {
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      for (const pattern of SCORING_BY_RULESET[ruleset].patterns) {
+        expect(pattern.sourcing.sources.length).toBeGreaterThan(0)
+        expect(pattern.description.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('gives every pattern a unique id', () => {
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const ids = SCORING_BY_RULESET[ruleset].patterns.map((p) => p.id)
+      expect(new Set(ids).size).toBe(ids.length)
+    }
+  })
+
+  it('explains itself wherever confidence is not established', () => {
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      for (const pattern of SCORING_BY_RULESET[ruleset].patterns) {
+        if (pattern.sourcing.confidence !== 'established') {
+          expect(pattern.sourcing.note, `${pattern.id} needs a note`).toBeTruthy()
+        }
+      }
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Scorekeeper
+// ---------------------------------------------------------------------------
+
+describe('scorekeeper', () => {
+  it('starts empty with four seats', () => {
+    const state = createScorekeeper()
+    expect(state.players).toHaveLength(4)
+    expect(state.hands).toHaveLength(0)
+    expect(totals(state)).toEqual({ 0: 0, 1: 0, 2: 0, 3: 0 })
+  })
+
+  it('records a discard win with deltas that sum to zero', () => {
+    const state = scorekeeperReducer(createScorekeeper(), {
+      type: 'recordWin',
+      id: 'h1',
+      input: { ruleset: 'hongKong', winnerSeat: 0, discarderSeat: 2, score: 4 },
+    })
+    const result = totals(state)
+    expect(result).toEqual({ 0: 2, 1: 0, 2: -2, 3: 0 })
+    expect(Object.values(result).reduce((a, b) => a + b, 0)).toBe(0)
+  })
+
+  it('records a self-draw against all three opponents', () => {
+    const state = scorekeeperReducer(createScorekeeper(), {
+      type: 'recordWin',
+      id: 'h1',
+      input: { ruleset: 'hongKong', winnerSeat: 1, score: 4 },
+    })
+    expect(totals(state)).toEqual({ 0: -2, 1: 6, 2: -2, 3: -2 })
+  })
+
+  it('accumulates across hands and undoes the last one', () => {
+    let state = createScorekeeper()
+    state = scorekeeperReducer(state, {
+      type: 'recordWin',
+      id: 'h1',
+      input: { ruleset: 'hongKong', winnerSeat: 0, discarderSeat: 1, score: 5 },
+    })
+    state = scorekeeperReducer(state, {
+      type: 'recordWin',
+      id: 'h2',
+      input: { ruleset: 'hongKong', winnerSeat: 2, discarderSeat: 0, score: 3 },
+    })
+    expect(totals(state)).toEqual({ 0: 3, 1: -4, 2: 1, 3: 0 })
+
+    state = scorekeeperReducer(state, { type: 'undo' })
+    expect(state.hands).toHaveLength(1)
+    expect(totals(state)).toEqual({ 0: 4, 1: -4, 2: 0, 3: 0 })
+  })
+
+  it('records a washout with nobody paying', () => {
+    const state = scorekeeperReducer(createScorekeeper(), { type: 'recordDraw', id: 'h1' })
+    expect(totals(state)).toEqual({ 0: 0, 1: 0, 2: 0, 3: 0 })
+    expect(state.hands[0]!.winnerSeat).toBeNull()
+  })
+
+  it('renames a seat without touching the hand log', () => {
+    let state = scorekeeperReducer(createScorekeeper(), { type: 'recordDraw', id: 'h1' })
+    state = scorekeeperReducer(state, { type: 'renamePlayer', seat: 2, name: 'Sam' })
+    expect(state.players[2]!.name).toBe('Sam')
+    expect(state.hands).toHaveLength(1)
+  })
+
+  it('ranks standings highest first', () => {
+    let state = createScorekeeper(['A', 'B', 'C', 'D'])
+    state = scorekeeperReducer(state, {
+      type: 'recordWin',
+      id: 'h1',
+      input: { ruleset: 'taiwanese', winnerSeat: 3, score: 5 },
+    })
+    const ranked = standings(state)
+    expect(ranked[0]!.player.name).toBe('D')
+    expect(ranked[0]!.total).toBe(39)
+  })
+
+  it('resets the hand log but keeps the players', () => {
+    let state = scorekeeperReducer(createScorekeeper(['A', 'B', 'C', 'D']), { type: 'recordDraw', id: 'h1' })
+    state = scorekeeperReducer(state, { type: 'reset' })
+    expect(state.hands).toHaveLength(0)
+    expect(state.players[0]!.name).toBe('A')
+  })
+})
