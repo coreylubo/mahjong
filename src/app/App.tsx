@@ -4,7 +4,6 @@ import {
   Badge,
   Group,
   Menu,
-  ScrollArea,
   SegmentedControl,
   Stack,
   Text,
@@ -43,8 +42,15 @@ export function App() {
   const Active = SECTIONS.find((section) => section.id === active)!.Component
 
   return (
-    <AppShell header={{ height: 48 }} navbar={{ width: 118, breakpoint: 0 }} padding="sm">
-      <AppShell.Header px="md" bg="dark.7">
+    <AppShell
+      // The safe-area insets are folded into the shell's own dimensions so
+      // Mantine's layout maths — which offsets Main by exactly these values —
+      // still lines up once the notch is accounted for. See app.css.
+      header={{ height: 'calc(48px + var(--safe-top))' }}
+      navbar={{ width: 'calc(118px + var(--safe-left))', breakpoint: 0 }}
+      padding="sm"
+    >
+      <AppShell.Header className="app-header" bg="dark.7">
         <Group h="100%" justify="space-between" wrap="nowrap" gap="xs">
           <Title order={5} style={{ whiteSpace: 'nowrap' }}>
             Mahjong
@@ -68,7 +74,7 @@ export function App() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="xs" bg="dark.7">
+      <AppShell.Navbar className="app-navbar" bg="dark.7">
         <Stack gap={6}>
           {SECTIONS.map((section) => (
             <UnstyledButton
@@ -94,10 +100,8 @@ export function App() {
         </Stack>
       </AppShell.Navbar>
 
-      <AppShell.Main>
-        <ScrollArea h="calc(100dvh - 48px - var(--mantine-spacing-sm) * 2)" type="auto">
-          <Active />
-        </ScrollArea>
+      <AppShell.Main className="app-main">
+        <Active />
       </AppShell.Main>
     </AppShell>
   )

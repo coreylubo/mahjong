@@ -1,20 +1,78 @@
 :root {
   color-scheme: dark;
-}
 
-html,
-body,
-#root {
-  height: 100%;
+  /*
+   * Safe-area insets, named once.
+   *
+   * The fallback matters: `env()` resolves to nothing at all on browsers
+   * without notch support, which makes any `calc()` using it invalid and
+   * silently drops the whole declaration. `env(x, 0px)` keeps the maths valid
+   * everywhere.
+   */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 body {
   margin: 0;
-  /* Keep the app clear of notches when the phone is on its side (spec §2). */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
   background: var(--mantine-color-dark-8);
-  overscroll-behavior: none;
+}
+
+/*
+ * THE DOCUMENT MUST BE THE THING THAT SCROLLS.
+ *
+ * Mobile Safari only collapses its address bar and tab strip when the DOCUMENT
+ * scrolls. Pinning `html, body, #root` to `height: 100%` and scrolling an inner
+ * container instead — which is what this file used to do, paired with a
+ * fixed-height ScrollArea in App.tsx — means the document never scrolls, so the
+ * browser chrome never goes away and permanently eats the vertical space this
+ * landscape-first layout needs.
+ *
+ * So: no height pinning here, and no inner scroller in App.tsx. The AppShell
+ * header and navbar are `position: fixed`, so they stay put while the page
+ * scrolls under them, which is the behaviour we wanted from the inner scroller
+ * anyway.
+ */
+
+/*
+ * Safe areas have to be applied to the FIXED regions, not to `body`.
+ *
+ * `body { padding: env(...) }` looks like it should work and does nothing here:
+ * Mantine positions the AppShell header and navbar `fixed`, and a fixed element
+ * is placed against the viewport, not against its padded ancestor. That is why
+ * the header title and the nav rail sat under the notch in landscape.
+ *
+ * The insets are folded into the AppShell's own height/width variables in
+ * App.tsx so its layout maths still lines up, and the padding below keeps each
+ * region's CONTENT clear of the cutout.
+ */
+.app-header {
+  padding-top: var(--safe-top);
+  padding-left: calc(var(--mantine-spacing-md) + var(--safe-left));
+  padding-right: calc(var(--mantine-spacing-md) + var(--safe-right));
+}
+
+/*
+ * These regions take NO Mantine `p`/`px` prop. Those props emit an inline
+ * style, and no stylesheet rule can override an inline style, so the inset
+ * would be silently dropped and the rail would sit under the notch again.
+ */
+.app-navbar {
+  padding: calc(var(--mantine-spacing-xs) + var(--safe-top))
+    var(--mantine-spacing-xs)
+    calc(var(--mantine-spacing-xs) + var(--safe-bottom))
+    calc(var(--mantine-spacing-xs) + var(--safe-left));
+}
+
+.app-main {
+  padding-right: calc(var(--mantine-spacing-sm) + var(--safe-right));
+  /*
+   * Bottom inset plus room for the home indicator and for Safari's chrome as it
+   * animates away, so the last card is never trapped under either.
+   */
+  padding-bottom: calc(var(--mantine-spacing-sm) + var(--safe-bottom));
 }
 
 /* Large tap targets — the device may be flat on the table (spec §2). */
