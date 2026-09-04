@@ -1,0 +1,58 @@
+# Builds the static site and publishes it to GitHub Pages.
+#
+# One-time setup in the repo: Settings → Pages → Build and deployment →
+# Source: "GitHub Actions". After that every push to main redeploys.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow the workflow to publish to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once; let a newer push finish rather than queueing.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Fail the deploy if the game logic or the portability contract breaks.
+      - run: npm test
+
+      - run: npm run build
+        env:
+          # Must match the repository name so asset URLs resolve under
+          # https://<user>.github.io/<repo>/. Change this if you rename the
+          # repo, or set it to "/" when serving from a custom domain.
+          BASE_PATH: /mahjong/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

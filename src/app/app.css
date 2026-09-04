@@ -1,0 +1,29 @@
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  /* Keep the app clear of notches when the phone is on its side (spec §2). */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  background: var(--mantine-color-dark-8);
+  overscroll-behavior: none;
+}
+
+/* Large tap targets — the device may be flat on the table (spec §2). */
+.section-tab {
+  min-height: 52px;
+}
+
+/* Horizontal strips of tiles scroll inside themselves rather than the page. */
+.no-page-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
