@@ -57,8 +57,14 @@ export interface DealShape {
   takesFinalSingle: boolean
   /** Stacks set aside as replacements for kongs and flowers. */
   deadWallStacks: number
-  /** Sets plus a pair the finished hand must contain. */
-  setsPlusPair: string
+  /**
+   * How many sets the finished hand needs, alongside its one pair.
+   *
+   * A count rather than a phrase because the app lets the player choose whether
+   * these are called "melds" or "sets" — the word is a UI concern, the number
+   * is not.
+   */
+  setCount: number
 }
 
 export const DEAL_SHAPE: Record<Ruleset, DealShape> = {
@@ -69,7 +75,7 @@ export const DEAL_SHAPE: Record<Ruleset, DealShape> = {
     roundsOfFour: 3,
     takesFinalSingle: true,
     deadWallStacks: 7,
-    setsPlusPair: 'four sets and a pair',
+    setCount: 4,
   },
   taiwanese: {
     handSize: 16,
@@ -78,7 +84,7 @@ export const DEAL_SHAPE: Record<Ruleset, DealShape> = {
     roundsOfFour: 4,
     takesFinalSingle: false,
     deadWallStacks: 8,
-    setsPlusPair: 'five sets and a pair',
+    setCount: 5,
   },
 }
 

@@ -37,7 +37,7 @@ import { RULESET_LABELS, useSettings } from '../settings'
 import { SourceNote } from '../components/SourceNote'
 
 export function SetupSection() {
-  const { ruleset } = useSettings()
+  const { ruleset, groupWord } = useSettings()
   const shape = DEAL_SHAPE[ruleset]
 
   return (
@@ -54,7 +54,10 @@ export function SetupSection() {
           <Grid gap="xs">
             <DealFact label="Your hand" value={`${shape.handSize} tiles`} />
             <DealFact label="Dealer starts on" value={`${shape.dealerHandSize} tiles`} />
-            <DealFact label="You are building" value={`${shape.setsPlusPair}`} />
+            <DealFact
+              label="You are building"
+              value={`${shape.setCount} ${groupWord(true)} + a pair`}
+            />
             <DealFact label="Each wall" value={`${shape.stacksPerWall} stacks of 2`} />
             <DealFact label="Dealt as" value={describeDeal(ruleset)} />
             <DealFact label="Dead wall" value={`${shape.deadWallStacks} stacks`} />

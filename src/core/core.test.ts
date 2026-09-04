@@ -7,6 +7,9 @@ import {
   TOTAL_TILES,
   SET_COMPOSITION,
   TILES_BY_ID,
+  CHINESE_NUMERALS,
+  SUIT_NAMING,
+  HONOUR_NAMING,
   bonusTileSeat,
   advanceRound,
   INITIAL_ROUND,
@@ -91,6 +94,22 @@ describe('tile data', () => {
   it('gives every tile a unique id and a recognition hint', () => {
     expect(Object.keys(TILES_BY_ID)).toHaveLength(TILES.length)
     expect(TILES.every((t) => t.recognition.length > 0)).toBe(true)
+  })
+
+  it('prints the nine Chinese numerals used on Character tiles', () => {
+    // These are drawn onto the tile faces, so a corrupted entry here ships a
+    // tile that reads as the wrong number. Worth pinning exactly.
+    expect(CHINESE_NUMERALS).toEqual(['一', '二', '三', '四', '五', '六', '七', '八', '九'])
+  })
+
+  it('names every suit and honour group in all three languages', () => {
+    for (const naming of [...Object.values(SUIT_NAMING), ...Object.values(HONOUR_NAMING)]) {
+      expect(naming.english).toBeTruthy()
+      expect(naming.traditional).toBeTruthy()
+      expect(naming.mandarin).toBeTruthy()
+      expect(naming.cantonese).toBeTruthy()
+      expect(naming.alsoCalled.length).toBeGreaterThan(0)
+    }
   })
 
   it('calls out 1 Bamboo as a bird, not a stick', () => {

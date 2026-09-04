@@ -184,6 +184,19 @@ needed from the scoring table as much as from the turn order.
 **Turns** splits into your turn and everyone else's, because at any moment only
 one of them applies to you.
 
+**Tile Reference** lays each suit out as a complete 1–9 run under its own name —
+in English, Chinese and both romanizations, with the alternative English names
+the person across the table might use. It replaced a tap-to-expand panel that
+answered "count the circles: 5", which tells a reader nothing they could not
+already see, while leaving the two things they genuinely cannot work out
+unanswered: what the suit is called, and which Chinese numeral is which on the
+Characters suit.
+
+Pip layouts and colours are copied from the reference plates rather than
+approximated. The patterns are load-bearing — 9 Dots is a blue row, a red row
+and a green row; 6 Dots is green over four red — so "close enough" would defeat
+the only job the drawing has.
+
 Ruleset and terminology sit behind **Table settings** in that same menu. They
 are decisions a table makes once before the first hand, so they do not earn
 permanent screen furniture — and in landscape on a phone, the width a nav rail

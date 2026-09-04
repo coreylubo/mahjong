@@ -21,103 +21,208 @@ const RED = '#c0392b'
 const GREEN = '#1e7a4c'
 const BLUE = '#2f5d99'
 
-/** Grid positions used by the dot and bamboo layouts, per rank. */
-const COLS_2 = [21, 39]
-const COLS_3 = [17, 30, 43]
+/*
+ * PIP LAYOUTS AND COLOURS ARE COPIED FROM A REAL SET, NOT INVENTED.
+ *
+ * Both suits colour their pips in fixed patterns that a player genuinely reads
+ * — 9 Dots is three blue, three red, three green rows, and 6 Dots is green over
+ * four red — so getting the colours "close enough" makes the drawing useless
+ * for the one job it has, which is recognising a tile you are holding.
+ *
+ * Reference: the tile plates on https://en.wikipedia.org/wiki/Mahjong_tiles
+ */
 
-function dotPositions(rank: number): { x: number; y: number; r: number }[] {
-  const r = 5.6
-  switch (rank) {
-    case 1:
-      return [{ x: 30, y: 42, r: 12 }]
-    case 2:
-      return [
-        { x: 30, y: 27, r },
-        { x: 30, y: 57, r },
-      ]
-    case 3:
-      return [
-        { x: 18, y: 24, r },
-        { x: 30, y: 42, r },
-        { x: 42, y: 60, r },
-      ]
-    case 4:
-      return [24, 60].flatMap((y) => COLS_2.map((x) => ({ x, y, r })))
-    case 5:
-      return [...[24, 60].flatMap((y) => COLS_2.map((x) => ({ x, y, r }))), { x: 30, y: 42, r }]
-    case 6:
-      return [22, 42, 62].flatMap((y) => COLS_2.map((x) => ({ x, y, r })))
-    case 7:
-      return [
-        ...COLS_3.map((x, i) => ({ x, y: 20 + i * 6, r: 5 })),
-        ...[50, 66].flatMap((y) => COLS_2.map((x) => ({ x, y, r: 5 }))),
-      ]
-    case 8:
-      return [20, 34, 50, 64].flatMap((y) => COLS_2.map((x) => ({ x, y, r: 5 })))
-    default:
-      return [22, 42, 62].flatMap((y) => COLS_3.map((x) => ({ x, y, r: 5 })))
-  }
+interface Pip {
+  x: number
+  y: number
+  r: number
+  fill: string
 }
 
-function bambooPositions(rank: number): { x: number; y: number; accent?: boolean }[] {
+const COLS_2 = [20, 40]
+const COLS_3 = [16, 30, 44]
+
+function grid(cols: number[], rows: number[], r: number, fill: string | string[]): Pip[] {
+  return rows.flatMap((y, row) =>
+    cols.map((x) => ({ x, y, r, fill: Array.isArray(fill) ? fill[row]! : fill })),
+  )
+}
+
+function dotPips(rank: number): Pip[] {
   switch (rank) {
     case 2:
       return [
-        { x: 30, y: 28 },
-        { x: 30, y: 56 },
+        { x: 30, y: 28, r: 8, fill: BLUE },
+        { x: 30, y: 58, r: 8, fill: GREEN },
       ]
     case 3:
+      // A descending diagonal, blue to green through red.
       return [
-        { x: 30, y: 24 },
-        { x: 21, y: 58 },
-        { x: 39, y: 58 },
+        { x: 18, y: 24, r: 7.5, fill: BLUE },
+        { x: 30, y: 42, r: 7.5, fill: RED },
+        { x: 42, y: 60, r: 7.5, fill: GREEN },
       ]
     case 4:
-      return [26, 58].flatMap((y) => COLS_2.map((x) => ({ x, y })))
+      return [
+        { x: 20, y: 28, r: 7.5, fill: GREEN },
+        { x: 40, y: 28, r: 7.5, fill: BLUE },
+        { x: 20, y: 58, r: 7.5, fill: BLUE },
+        { x: 40, y: 58, r: 7.5, fill: GREEN },
+      ]
     case 5:
-      return [...[24, 60].flatMap((y) => COLS_2.map((x) => ({ x, y }))), { x: 30, y: 42, accent: true }]
+      return [
+        { x: 20, y: 24, r: 7, fill: GREEN },
+        { x: 40, y: 24, r: 7, fill: BLUE },
+        { x: 30, y: 42, r: 7, fill: RED },
+        { x: 20, y: 60, r: 7, fill: BLUE },
+        { x: 40, y: 60, r: 7, fill: GREEN },
+      ]
     case 6:
-      return [24, 42, 60].flatMap((y) => COLS_2.map((x) => ({ x, y })))
+      // Green across the top, then four red.
+      return grid(COLS_2, [24, 42, 60], 7, [GREEN, RED, RED])
     case 7:
-      return [{ x: 30, y: 20, accent: true }, ...[38, 54, 70].flatMap((y) => COLS_2.map((x) => ({ x, y })))]
+      // Three green stepping down to the right, then four red.
+      return [
+        { x: 16, y: 19, r: 6, fill: GREEN },
+        { x: 26, y: 25, r: 6, fill: GREEN },
+        { x: 36, y: 31, r: 6, fill: GREEN },
+        ...grid(COLS_2, [50, 66], 6.5, RED),
+      ]
     case 8:
-      return [20, 35, 51, 66].flatMap((y) => COLS_2.map((x) => ({ x, y })))
+      return grid(COLS_2, [18, 34, 50, 66], 6.5, BLUE)
     default:
-      return [24, 42, 60].flatMap((y) => COLS_3.map((x) => ({ x, y })))
+      // Nine: a blue row, a red row, a green row.
+      return grid(COLS_3, [24, 44, 64], 6.5, [BLUE, RED, GREEN])
   }
 }
 
-function Stick({ x, y, accent }: { x: number; y: number; accent?: boolean }) {
-  const colour = accent ? RED : GREEN
+/** A pip: a coloured disc with a white four-pointed cut-out, as printed. */
+function Dot({ x, y, r, fill }: Pip) {
+  const arm = r * 1.5
+  const w = r * 0.4
   return (
     <g>
-      <rect x={x - 3.6} y={y - 9} width={7.2} height={18} rx={3.6} fill={colour} />
-      <rect x={x - 5.2} y={y - 1.6} width={10.4} height={3.2} rx={1.6} fill={colour} opacity={0.7} />
-      <rect x={x - 1.4} y={y - 6.5} width={2.8} height={5} rx={1.4} fill={FACE} opacity={0.45} />
+      <circle cx={x} cy={y} r={r} fill={fill} />
+      <g transform={`rotate(45 ${x} ${y})`}>
+        <rect x={x - w / 2} y={y - arm / 2} width={w} height={arm} rx={w / 2} fill={FACE} />
+        <rect x={x - arm / 2} y={y - w / 2} width={arm} height={w} rx={w / 2} fill={FACE} />
+      </g>
     </g>
   )
 }
 
-/** 1 Bamboo is a bird, not a stick — the single most common beginner trip-up. */
+/** 1 Dot is one large concentric target rather than a scaled-up pip. */
+function SingleDot() {
+  return (
+    <g>
+      <circle cx={30} cy={42} r={15} fill={BLUE} />
+      <circle cx={30} cy={42} r={12.5} fill={FACE} />
+      <circle cx={30} cy={42} r={10.5} fill={GREEN} />
+      <circle cx={30} cy={42} r={8} fill={FACE} />
+      <Dot x={30} y={42} r={6.5} fill={RED} />
+    </g>
+  )
+}
+
+interface Cane {
+  x: number
+  y: number
+  fill: string
+  /** Degrees, for the crossed canes on 8 Bamboo. */
+  rotate?: number
+}
+
+function bambooCanes(rank: number): Cane[] {
+  switch (rank) {
+    case 2:
+      return [
+        { x: 30, y: 28, fill: GREEN },
+        { x: 30, y: 56, fill: GREEN },
+      ]
+    case 3:
+      return [
+        { x: 30, y: 25, fill: GREEN },
+        { x: 20, y: 58, fill: GREEN },
+        { x: 40, y: 58, fill: GREEN },
+      ]
+    case 4:
+      return [28, 58].flatMap((y) => COLS_2.map((x) => ({ x, y, fill: GREEN })))
+    case 5:
+      return [
+        ...[25, 60].flatMap((y) => COLS_2.map((x) => ({ x, y, fill: GREEN }))),
+        { x: 30, y: 42, fill: RED },
+      ]
+    case 6:
+      return [30, 58].flatMap((y) => COLS_3.map((x) => ({ x, y, fill: GREEN })))
+    case 7:
+      return [
+        { x: 30, y: 18, fill: RED },
+        ...[41, 63].flatMap((y) => COLS_3.map((x) => ({ x, y, fill: GREEN }))),
+      ]
+    case 8:
+      // Two mirrored chevrons — the one rank that is not a plain grid.
+      return [
+        { x: 15, y: 28, fill: GREEN },
+        { x: 26, y: 28, fill: GREEN, rotate: -28 },
+        { x: 34, y: 28, fill: GREEN, rotate: 28 },
+        { x: 45, y: 28, fill: GREEN },
+        { x: 15, y: 60, fill: GREEN },
+        { x: 26, y: 60, fill: GREEN, rotate: 28 },
+        { x: 34, y: 60, fill: GREEN, rotate: -28 },
+        { x: 45, y: 60, fill: GREEN },
+      ]
+    default:
+      // Nine: the middle column is red.
+      return [24, 44, 64].flatMap((y) =>
+        COLS_3.map((x) => ({ x, y, fill: x === 30 ? RED : GREEN })),
+      )
+  }
+}
+
+/** One cane: a segmented stalk with a cap at each end. */
+function Cane({ x, y, fill, rotate }: Cane) {
+  return (
+    <g transform={rotate ? `rotate(${rotate} ${x} ${y})` : undefined}>
+      <rect x={x - 2} y={y - 8} width={4} height={16} fill={fill} />
+      <rect x={x - 5} y={y - 9.5} width={10} height={3} rx={1.5} fill={fill} />
+      <rect x={x - 5} y={y + 6.5} width={10} height={3} rx={1.5} fill={fill} />
+      <rect x={x - 4} y={y - 1.4} width={8} height={2.8} rx={1.4} fill={fill} />
+    </g>
+  )
+}
+
+/**
+ * 1 Bamboo is a bird, not a cane — the single most common beginner trip-up, and
+ * the reason this suit needs a drawing at all rather than a count.
+ *
+ * Drawn from the reference plate: red crest, blue body facing left, long
+ * striped tail falling to the lower left, green perch.
+ */
 function Bird() {
   return (
     <g>
       {/* Perch */}
-      <rect x={27} y={58} width={6} height={14} rx={3} fill={GREEN} />
-      <rect x={20} y={68} width={20} height={3.4} rx={1.7} fill={GREEN} opacity={0.8} />
-      {/* Tail feathers, fanning down and left */}
-      <path d="M25 48 L12 62" stroke={RED} strokeWidth={3} strokeLinecap="round" />
-      <path d="M26 50 L14 66" stroke={GREEN} strokeWidth={3} strokeLinecap="round" />
+      <rect x={16} y={62} width={28} height={3} rx={1.5} fill={GREEN} />
+      <rect x={28} y={54} width={3} height={10} fill={GREEN} />
+
+      {/* Tail — the striped fan that makes this tile unmistakable */}
+      <path d="M28 52 L20 76" stroke={BLUE} strokeWidth={2.4} strokeLinecap="round" />
+      <path d="M30 52 L26 78" stroke={RED} strokeWidth={2.4} strokeLinecap="round" />
+      <path d="M32 52 L33 78" stroke={GREEN} strokeWidth={2.4} strokeLinecap="round" />
+      <path d="M34 51 L40 75" stroke={BLUE} strokeWidth={2.4} strokeLinecap="round" />
+
       {/* Body */}
-      <ellipse cx={31} cy={40} rx={9.5} ry={14} fill={GREEN} transform="rotate(14 31 40)" />
-      {/* Wing */}
-      <ellipse cx={33} cy={41} rx={5} ry={9.5} fill={FACE} opacity={0.42} transform="rotate(14 33 41)" />
-      {/* Head */}
-      <circle cx={27} cy={22} r={6.4} fill={GREEN} />
-      <circle cx={25.5} cy={20.5} r={1.5} fill={INK} />
-      {/* Crest and beak */}
-      <path d="M27 15 L29 10" stroke={RED} strokeWidth={2.2} strokeLinecap="round" />
-      <path d="M21 23 L14 25 L21 27 Z" fill={RED} />
+      <ellipse cx={30} cy={40} rx={9} ry={13} fill={BLUE} transform="rotate(-12 30 40)" />
+      <ellipse cx={31} cy={41} rx={4.5} ry={8} fill={FACE} opacity={0.35} transform="rotate(-12 31 41)" />
+
+      {/* Head, eye and beak */}
+      <circle cx={25} cy={24} r={6} fill={BLUE} />
+      <circle cx={23.5} cy={23} r={1.4} fill={FACE} />
+      <path d="M19 25 L12 27 L19 29 Z" fill={GREEN} />
+
+      {/* Crest */}
+      <path d="M25 17 L23 11" stroke={RED} strokeWidth={2.2} strokeLinecap="round" />
+      <path d="M28 18 L29 12" stroke={RED} strokeWidth={2.2} strokeLinecap="round" />
     </g>
   )
 }
@@ -142,14 +247,11 @@ function Glyph({ text, fill, size, y }: { text: string; fill: string; size: numb
 function FaceContent({ tile }: { tile: Tile }) {
   if (tile.kind === 'suit' && tile.rank) {
     if (tile.suit === 'dots') {
+      if (tile.rank === 1) return <SingleDot />
       return (
         <>
-          {dotPositions(tile.rank).map((dot, i) => (
-            <g key={i}>
-              <circle cx={dot.x} cy={dot.y} r={dot.r} fill={i % 2 === 0 ? BLUE : GREEN} />
-              <circle cx={dot.x} cy={dot.y} r={dot.r * 0.45} fill={FACE} />
-              <circle cx={dot.x} cy={dot.y} r={dot.r * 0.2} fill={RED} />
-            </g>
+          {dotPips(tile.rank).map((pip, i) => (
+            <Dot key={i} {...pip} />
           ))}
         </>
       )
@@ -158,8 +260,8 @@ function FaceContent({ tile }: { tile: Tile }) {
       if (tile.rank === 1) return <Bird />
       return (
         <>
-          {bambooPositions(tile.rank).map((stick, i) => (
-            <Stick key={i} {...stick} />
+          {bambooCanes(tile.rank).map((cane, i) => (
+            <Cane key={i} {...cane} />
           ))}
         </>
       )

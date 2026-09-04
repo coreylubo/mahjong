@@ -32,7 +32,7 @@ import {
 
 import type { Ruleset, TermLanguage } from '../../core'
 import { DEAL_SHAPE } from '../../core'
-import { RULESET_LABELS, useSettings } from '../settings'
+import { RULESET_LABELS, useSettings, type GroupTerm } from '../settings'
 
 export const LANGUAGE_LABELS: Record<TermLanguage, string> = {
   en: 'English',
@@ -47,7 +47,8 @@ export function TableSettingsModal({
   opened: boolean
   onClose: () => void
 }) {
-  const { ruleset, setRuleset, terminology, setTerminology } = useSettings()
+  const { ruleset, setRuleset, terminology, setTerminology, groupTerm, setGroupTerm, groupWord } =
+    useSettings()
 
   return (
     <Modal
@@ -80,7 +81,7 @@ export function TableSettingsModal({
           />
           <Text size="xs" c="dimmed" lh={1.4}>
             {RULESET_LABELS[ruleset]} deals a {DEAL_SHAPE[ruleset].handSize}-tile hand —{' '}
-            {DEAL_SHAPE[ruleset].setsPlusPair}. Scores are counted in{' '}
+            {DEAL_SHAPE[ruleset].setCount} {groupWord(true)} and a pair. Scores are counted in{' '}
             {ruleset === 'hongKong' ? 'faan' : 'tai'}.
           </Text>
         </Stack>
@@ -130,6 +131,25 @@ export function TableSettingsModal({
               </Text>
             </Stack>
           )}
+        </Stack>
+
+        <Stack gap={6}>
+          <Text size="sm" fw={700}>
+            Call a group of tiles
+          </Text>
+          <SegmentedControl
+            fullWidth
+            value={groupTerm}
+            onChange={(value) => setGroupTerm(value as GroupTerm)}
+            data={[
+              { value: 'melds', label: 'Melds' },
+              { value: 'sets', label: 'Sets' },
+            ]}
+          />
+          <Text size="xs" c="dimmed" lh={1.4}>
+            Both are in wide use and neither is more correct — pick whichever your table
+            says, so the app is not teaching you a word nobody there uses.
+          </Text>
         </Stack>
 
         <Badge variant="light" color="gray" radius="sm" style={{ alignSelf: 'flex-start' }}>
