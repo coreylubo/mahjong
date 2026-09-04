@@ -116,8 +116,17 @@ The fan tables on the two sheets are identical — only the payment half differs
 Switch systems in **Scoring → What it pays**. The Scorekeeper follows the same
 setting, and asks for the dealer's seat when Classical needs it.
 
-Taiwanese scoring has no equivalent primary source yet, and is still assembled
-from online references. Treat it as the weaker half.
+Taiwanese scoring now has a primary source too: the **LA Mahjong League's
+published house rules**, a two-page rule guide for 16-tile Taiwanese play.
+
+Taiwanese tai values vary more than Hong Kong faan, and the variation splits
+into recognisable *scales* rather than scattering. The data holds the
+mainstream 1/2/4/8/16/24 scale — the one the Mahjong Wiki's IGS column and the
+Traditional-Chinese chart at mj888 independently agree on. The LA league's
+scale shares the same hand list but roughly quadruples the top end (Full Flush
+32 tai, Heavenly Hand 64), and says so itself: *"Every family has their own
+house rules and these are ours."* So it is recorded in the notes as a named
+house variant beside each value it changes, never mixed into the default.
 
 ⚠️ **Still worth verifying against your own table.** Mahjong has no governing
 body, and values genuinely differ between regions, clubs and households.
@@ -130,17 +139,21 @@ rule and procedure carries:
 - and a **note** wherever sources conflict, stating *both* readings rather than
   silently picking one.
 
-Conflicts between the supplied sheet and the online references, all flagged in
-the data:
+Six Hong Kong entries once carried an unresolved conflict between the sheet and
+"several online charts". Those charts have since been re-fetched and checked
+one at a time:
 
-| Hand | Rule sheet | Online charts |
+| Hand | Rule sheet | Status |
 | --- | --- | --- |
-| Full Flush | 7 faan | 6 faan |
-| All Honours | 10 faan | 13 (limit) |
-| Small Four Winds | 6 faan | 8, or limit |
-| Small Three Dragons | 5 faan | 2 on top of the dragon triplets |
-| Win by Kong Replacement | 2 faan, replacing Self-Pick | 1 faan on top of it |
-| All Concealed Triplets | 8 faan | limit hand |
+| Full Flush | 7 faan | **Resolved.** Every source agrees; the 6-faan reading is in none of them |
+| All Honours | 10 faan | **Resolved.** Every source agrees on 10 |
+| Small Three Dragons | 5 faan | **Resolved.** Every source agrees on 5 |
+| Win by Kong Replacement | 2 faan, replacing Self-Pick | **Resolved in substance** — the charts book 1 on top of Self-Pick, the same 2 total |
+| Small Four Winds | 6 faan | **Still contested.** Sheet and Wikipedia say 6; the Mahjong Wiki says 10–12 |
+| All Concealed Triplets | 8 faan | **Still contested.** Sheet says 8, Wikipedia 10, one chart pays a limit |
+
+Where a conflict survives, the sheet wins the tie as the primary source, and
+the note states the spread in real numbers.
 
 A third payment convention — the discarder alone paying face value — appears in
 some online guides but is on neither sheet, so it isn't implemented.
@@ -149,6 +162,7 @@ Several hands appear on the sheet alone (Double Kong Replacement, the flower
 bonuses, Blessing of Man) and are marked as such.
 
 A test enforces that anything not marked `established` explains itself, that
+anything marked `established` cites at least two distinct sources, that
 `replaces` only ever points at a real pattern, and that the faan-to-points chart
 matches the sheet value for value.
 

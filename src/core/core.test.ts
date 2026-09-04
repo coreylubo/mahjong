@@ -418,6 +418,27 @@ describe('scoring tables', () => {
       }
     }
   })
+
+  it('corroborates anything marked established against two sources', () => {
+    // `established` means every source consulted agrees — which takes at least
+    // two sources to be a claim at all. A single-source value is `unverified`
+    // however confident it reads.
+    //
+    // This guards a real defect: the Taiwanese table previously marked values
+    // `established` while citing pages that turned out to use a different tai
+    // scale entirely, and marked Five Concealed Pungs against one source that
+    // does not in fact mention the hand.
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      for (const pattern of SCORING_BY_RULESET[ruleset].patterns) {
+        if (pattern.sourcing.confidence === 'established') {
+          expect(
+            new Set(pattern.sourcing.sources).size,
+            `${pattern.id} is established on fewer than two distinct sources`,
+          ).toBeGreaterThanOrEqual(2)
+        }
+      }
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

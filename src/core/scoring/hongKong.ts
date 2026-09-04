@@ -14,6 +14,19 @@
  * be extracted from the PDF, so the Chinese names here come from the general
  * references below instead. The faan values are the sheet's.
  *
+ * ADJUDICATION PASS. Six entries previously carried an unresolved conflict
+ * between the sheet and "several online charts". Those charts were re-fetched
+ * and checked one by one:
+ *
+ *  - Full Flush, All Honours and Small Three Dragons are RESOLVED. Every source
+ *    consulted agrees with the sheet, and the competing values a previous
+ *    revision reported could not be attributed to any of them.
+ *  - Win by Kong Replacement is resolved in substance: the sheet and the online
+ *    charts book it differently but reach the same 2 faan total.
+ *  - Small Four Winds and All Concealed Triplets remain genuinely contested,
+ *    with the spread now stated in real numbers rather than "several charts".
+ *    The sheet wins the tie, being the primary source.
+ *
  * Other sources consulted:
  * - https://mahjong.wikidot.com/rules:hong-kong-old-style-scoring
  * - http://mcgillmahjong.blogspot.com/p/scoring-in-hong-kong-mahjong.html
@@ -54,8 +67,8 @@ const PATTERNS: ScoringPattern[] = [
     description: 'You declared a kong, drew the replacement tile from the dead end of the wall, and it completed your hand.',
     sourcing: {
       confidence: 'varies',
-      sources: [SHEET, WIKIDOT, MCGILL],
-      note: 'SOURCES CONFLICT: the supplied rule sheet scores this 2 faan (replacing the 1 for Self-Pick). Several online charts list it as 1 faan on top of Self-Pick, which comes to the same total. Either way it is a self-draw, so do not count both.',
+      sources: [SHEET, WIKIDOT, MCGILL, WIKIPEDIA],
+      note: 'The bookkeeping differs but the total does not. The supplied sheet scores 2 faan, replacing the 1 for Self-Pick. Wikipedia and the Mahjong Wiki both score 1 faan on top of Self-Pick — also 2 in total. So the payout is agreed; only the way you write it down varies. Either way it is a self-draw, so do not count both.',
     },
   },
   {
@@ -142,8 +155,8 @@ const PATTERNS: ScoringPattern[] = [
     description: 'Every set is a triplet and none of them were claimed from another player. You may only win by self-pick, or on a discard that completes the pair.',
     sourcing: {
       confidence: 'varies',
-      sources: [SHEET, 'http://mahjong.wikidot.com/four-concealed-pungs'],
-      note: 'The supplied sheet scores 8 faan. Other rulesets treat this as an outright limit hand.',
+      sources: [SHEET, WIKIPEDIA, 'http://mahjong.wikidot.com/four-concealed-pungs'],
+      note: 'SOURCES CONFLICT across a wide range. The supplied sheet scores 8 faan and one Hong Kong Old Style table on the Mahjong Wiki agrees; Wikipedia and a second wiki table give 10; a third pays it as an outright limit hand. The sheet is the primary source, so 8 stands, but confirm at a table playing for money.',
     },
   },
   {
@@ -181,9 +194,9 @@ const PATTERNS: ScoringPattern[] = [
     replaces: 'hk-dragon-pung',
     description: 'Triplets of two dragons, plus a pair of the third.',
     sourcing: {
-      confidence: 'varies',
-      sources: [SHEET, WIKIDOT, TILEBUDDY],
-      note: 'The supplied sheet scores 5 faan, replacing the individual dragon triplets. Some online charts instead list 2 faan on top of the dragon triplets you already hold, which comes to 4.',
+      confidence: 'established',
+      sources: [SHEET, WIKIDOT, WIKIPEDIA, TILEBUDDY],
+      note: 'RESOLVED at 5 faan, replacing the individual dragon triplets. The supplied sheet, Wikipedia and both Hong Kong Old Style tables on the Mahjong Wiki agree. The "2 faan on top of the dragon triplets" reading a previous revision flagged could not be attributed to any source consulted; a third, non-HKOS variant table gives 6.',
     },
   },
   {
@@ -224,8 +237,8 @@ const PATTERNS: ScoringPattern[] = [
     description: 'Triplets of three winds, plus a pair of the fourth.',
     sourcing: {
       confidence: 'varies',
-      sources: [SHEET, WIKIDOT, MCGILL],
-      note: 'SOURCES CONFLICT: the supplied sheet scores 6 faan. Several online charts list 8, and some play it as a limit hand.',
+      sources: [SHEET, WIKIDOT, MCGILL, WIKIPEDIA],
+      note: 'SOURCES CONFLICT, and it is a wide one. The supplied sheet scores 6 faan and Wikipedia agrees. The Mahjong Wiki\'s two Hong Kong Old Style tables both give 10, and a third variant table gives 12. The sheet is the primary source here, so 6 stands — but on a table using the higher reading this hand is worth nearly twice as much. Agree it before you play.',
     },
   },
   {
@@ -261,9 +274,9 @@ const PATTERNS: ScoringPattern[] = [
     replaces: 'hk-half-flush',
     description: 'Your hand contains only one suit, with no honour tiles at all.',
     sourcing: {
-      confidence: 'varies',
-      sources: [SHEET, WIKIDOT, TILEBUDDY],
-      note: 'SOURCES CONFLICT: the supplied sheet scores 7 faan; 6 appears on several online charts. Agree the value before you play.',
+      confidence: 'established',
+      sources: [SHEET, WIKIDOT, WIKIPEDIA, TILEBUDDY],
+      note: 'RESOLVED. A previous revision flagged a 6-faan reading, which no source consulted actually gives. The supplied sheet, Wikipedia and both Hong Kong Old Style tables on the Mahjong Wiki all score 7. A third, non-HKOS variant table on that wiki gives 9.',
     },
   },
   {
@@ -302,9 +315,9 @@ const PATTERNS: ScoringPattern[] = [
     replaces: 'hk-mixed-terminals',
     description: 'Your hand contains only honour tiles — winds and dragons, nothing suited. The 3 faan for All Triplets is already included.',
     sourcing: {
-      confidence: 'varies',
+      confidence: 'established',
       sources: [SHEET, WIKIDOT, MCGILL, WIKIPEDIA],
-      note: 'SOURCES CONFLICT: the supplied sheet scores 10 faan. Several online sources treat this as a full limit hand at 13.',
+      note: 'RESOLVED at 10 faan. The supplied sheet, Wikipedia and both Hong Kong Old Style tables on the Mahjong Wiki agree. The 13-faan limit-hand reading a previous revision flagged could not be attributed to any source consulted, though some rulesets outside Hong Kong Old Style do pay this as a limit hand.',
     },
   },
 
