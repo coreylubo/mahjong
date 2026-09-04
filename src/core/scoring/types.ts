@@ -33,6 +33,15 @@ export interface ScoringPattern {
   beginnerNote?: string
   /** True when the pattern can be counted more than once in one hand (e.g. per dragon pung). */
   repeatable?: boolean
+  /**
+   * Id of the pattern this one supersedes.
+   *
+   * The supplied Hong Kong rule sheet lists some hands indented under others,
+   * with the rule "indented features replace the parent feature" — a Full Flush
+   * replaces a Mixed Flush rather than adding to it. Scoring is otherwise a
+   * straight sum, so without this the app would double-count.
+   */
+  replaces?: string
   sourcing: Sourced
 }
 

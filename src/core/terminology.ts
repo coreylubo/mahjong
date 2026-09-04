@@ -107,6 +107,13 @@ export const TERMS: Record<string, TermEntry> = {
     mandarin: { romanized: 'diǎn pào', characters: '點炮' },
     gloss: 'You discarded the tile someone else won on.',
   },
+  chickenHand: {
+    key: 'chickenHand',
+    en: 'Chicken hand',
+    cantonese: { romanized: 'gaai wu', characters: '雞糊' },
+    mandarin: { romanized: 'jī hú', characters: '雞胡' },
+    gloss: 'A winning hand worth zero faan. Only playable where the table has no minimum.',
+  },
   draw: {
     key: 'draw',
     en: 'Draw / no winner',
@@ -251,8 +258,9 @@ export const TERMINOLOGY_SOURCING: Sourced = {
     'https://www.mahjonggame.hk/learn/hk-mahjong/glossary',
     'https://mcgillmahjong.blogspot.com/p/exhaustive-glossary-of-mahjong-terms.html',
     'https://mahjongcalculators.com/glossary/',
+    'Hong Kong Mahjong Rule Sheet v1.0 (3 April 2025) by /u/danma — PDF supplied by the project owner',
   ],
-  note: 'Romanization schemes differ (Jyutping vs. Yale vs. table shorthand), and some terms differ between mainland and Taiwanese Mandarin. Characters are the stable form.',
+  note: 'The Cantonese readings for chow (soeng), pung, gong, zi mo, sik wu, gaai wu and the three suits (tung zi, sok zi, maan zi) are confirmed by the rule sheet supplied by the project owner. Elsewhere, romanization schemes differ (Jyutping vs. Yale vs. table shorthand) and some terms differ between mainland and Taiwanese Mandarin. Characters are the stable form.',
 }
 
 /**

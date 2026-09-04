@@ -15,60 +15,85 @@
 
 import type { Sourced } from '../types'
 
+/**
+ * The rule sheet supplied by the project owner. Not a URL — the UI renders
+ * non-link sources as plain text.
+ */
+export const HK_RULE_SHEET = 'Hong Kong Mahjong Rule Sheet v1.0 (3 April 2025) by /u/danma — PDF supplied by the project owner'
+
 // ---------------------------------------------------------------------------
 // Hong Kong
 // ---------------------------------------------------------------------------
+
+/**
+ * Payment convention on a win off a discard. All three are in real use.
+ *
+ * 'newStyle'   — 出銃包三家, "the discarder pays all". The discarder alone
+ *                pays, at DOUBLE the points. This is the convention printed on
+ *                the rule sheet the project owner supplied, and is the default.
+ * 'discarderOnly' — the discarder alone pays, at face value.
+ * 'classical'  — the discarder pays double AND the other two each pay face
+ *                value.
+ *
+ * Self-draw is the same under all three: every opponent pays face value.
+ */
+export type DiscardPayment = 'newStyle' | 'discarderOnly' | 'classical'
 
 export interface HongKongTableRules {
   /** Faan needed to declare a win. */
   minimumFaan: number
   /** Faan at which the payout stops climbing. */
   limitFaan: number
-  /**
-   * Payment convention on a win off a discard.
-   *
-   * 'discarderOnly' — the modern Hong Kong standard: the player who discarded
-   *   pays the whole amount and the other two pay nothing.
-   * 'discarderDouble' — the classical convention: the discarder pays double
-   *   and the other two each pay the base amount.
-   */
-  discardPayment: 'discarderOnly' | 'discarderDouble'
+  discardPayment: DiscardPayment
 }
 
 export const DEFAULT_HK_RULES: HongKongTableRules = {
   minimumFaan: 3,
-  limitFaan: 10,
-  discardPayment: 'discarderOnly',
+  limitFaan: 13,
+  discardPayment: 'newStyle',
 }
 
 /**
- * Convert faan into payout units.
+ * The published faan → points chart ("New Style").
  *
- * The Hong Kong chart is a doubling ladder anchored on the table minimum: the
- * cheapest legal win is worth 1 unit and each further faan doubles it, until
- * the limit caps it. The usual published anchor corroborates this — with a
- * 3-faan minimum and a 10-faan limit, a limit hand is worth 128 units
- * (2^(10-3) = 128).
- *
- * Below the minimum the ladder still runs, so tables playing a 0- or 1-faan
- * minimum get fractional-looking values; we clamp at 1 unit rather than
- * inventing a sub-unit convention.
+ * Transcribed directly from the Payment Table on the Hong Kong Mahjong Rule
+ * Sheet v1.0 supplied by the project owner. Note that it is NOT a plain
+ * doubling ladder: it doubles to 4 faan, then advances in two interleaved
+ * doubling series (16→32→64→128→256 and 24→48→96→192→384), which is the usual
+ * Hong Kong tapering. Index = faan; 13 and above all pay 384.
  */
-export function faanToUnits(faan: number, rules: HongKongTableRules = DEFAULT_HK_RULES): number {
-  const capped = Math.min(faan, rules.limitFaan)
-  const steps = capped - rules.minimumFaan
-  return steps <= 0 ? 1 : 2 ** steps
+export const HK_POINTS_TABLE: readonly number[] = [
+  1, // 0 faan — a "chicken hand", only playable where the table has no minimum
+  2, // 1
+  4, // 2
+  8, // 3
+  16, // 4
+  24, // 5
+  32, // 6
+  48, // 7
+  64, // 8
+  96, // 9
+  128, // 10
+  192, // 11
+  256, // 12
+  384, // 13+
+]
+
+/** Look up the base points a hand is worth, capping at the table's limit. */
+export function faanToPoints(faan: number, rules: HongKongTableRules = DEFAULT_HK_RULES): number {
+  const capped = Math.min(Math.max(faan, 0), rules.limitFaan, HK_POINTS_TABLE.length - 1)
+  return HK_POINTS_TABLE[capped]!
 }
 
 export const FAAN_CONVERSION_SOURCING: Sourced = {
   confidence: 'varies',
   sources: [
+    HK_RULE_SHEET,
     'https://mahjong.wikidot.com/rules:hong-kong-old-style-scoring',
     'https://en.wikipedia.org/wiki/Hong_Kong_mahjong_scoring_rules',
-    'https://www.mahjonggame.hk/learn/hk-mahjong/scoring',
   ],
   note:
-    'Tables use their own printed conversion charts, and several tapering variants exist (some flatten the doubling above 6 faan). This app uses a clean doubling ladder anchored on the table minimum, which matches the commonly published figure of 128 units for a 10-faan limit hand at a 3-faan minimum. Check your table\'s chart.',
+    'Transcribed from the "New Style" Payment Table on the supplied rule sheet. Other charts are in circulation — some flatten differently above 6 faan, and tables that cap below 13 faan simply stop the chart early. Check your table\'s own chart.',
 }
 
 export interface PayoutBreakdown {
@@ -90,50 +115,60 @@ export interface HongKongWin {
 
 export function hongKongPayout(win: HongKongWin): PayoutBreakdown {
   const rules = win.rules ?? DEFAULT_HK_RULES
-  const units = faanToUnits(win.faan, rules)
+  const points = faanToPoints(win.faan, rules)
   const perSeat: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 }
 
   if (win.discarderSeat === undefined) {
-    // Self-draw: everyone pays the full amount.
+    // Self-draw: every opponent pays face value.
     for (let seat = 0; seat < 4; seat += 1) {
-      if (seat !== win.winnerSeat) perSeat[seat] = units
+      if (seat !== win.winnerSeat) perSeat[seat] = points
     }
     return {
-      winnerReceives: units * 3,
+      winnerReceives: points * 3,
       perSeat,
-      explanation: `Self-draw at ${win.faan} faan. All three opponents pay ${units} each.`,
+      explanation: `Self-draw at ${win.faan} faan (${points} points). All three opponents pay ${points} each.`,
     }
   }
 
   if (rules.discardPayment === 'discarderOnly') {
-    perSeat[win.discarderSeat] = units
+    perSeat[win.discarderSeat] = points
     return {
-      winnerReceives: units,
+      winnerReceives: points,
       perSeat,
-      explanation: `Win off a discard at ${win.faan} faan. Only the discarder pays, ${units}.`,
+      explanation: `Win off a discard at ${win.faan} faan. Only the discarder pays, ${points}.`,
     }
   }
 
-  // Classical: discarder pays double, the other two pay base.
+  if (rules.discardPayment === 'newStyle') {
+    perSeat[win.discarderSeat] = points * 2
+    return {
+      winnerReceives: points * 2,
+      perSeat,
+      explanation: `Win off a discard at ${win.faan} faan (${points} points). The discarder alone pays double, ${points * 2}.`,
+    }
+  }
+
+  // Classical: discarder pays double, the other two pay face value.
   for (let seat = 0; seat < 4; seat += 1) {
     if (seat === win.winnerSeat) continue
-    perSeat[seat] = seat === win.discarderSeat ? units * 2 : units
+    perSeat[seat] = seat === win.discarderSeat ? points * 2 : points
   }
   return {
-    winnerReceives: units * 4,
+    winnerReceives: points * 4,
     perSeat,
-    explanation: `Win off a discard at ${win.faan} faan (classical payout). The discarder pays ${units * 2}, the other two pay ${units} each.`,
+    explanation: `Win off a discard at ${win.faan} faan (classical payout). The discarder pays ${points * 2}, the other two pay ${points} each.`,
   }
 }
 
 export const HK_PAYMENT_SOURCING: Sourced = {
   confidence: 'varies',
   sources: [
+    HK_RULE_SHEET,
     'https://mahjong.wikidot.com/rules:hong-kong-old-style-scoring',
     'https://partypotapp.com/blog/mahjong-scoring-beginners-guide/',
   ],
   note:
-    'Two conventions are both in use. Modern Hong Kong play: only the discarder pays. Classical play: the discarder pays double and the other two pay base. Self-draw is consistent across both — all three opponents pay in full.',
+    'The supplied rule sheet uses "New Style" (出銃包三家): on a discard the discarder alone pays, at double the points. Two other conventions are also in use — the discarder alone paying face value, and the classical version where the discarder pays double and the other two pay face value as well. Self-draw is the same everywhere: all three opponents pay face value.',
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +252,7 @@ export interface PayoutDifference {
 export const PAYOUT_DIFFERENCES: readonly PayoutDifference[] = [
   {
     topic: 'Scoring unit',
-    hongKong: 'Faan (番). Each faan roughly doubles the payout — the scale is exponential.',
+    hongKong: 'Faan (番). Points climb steeply with each faan, following a printed chart rather than a formula.',
     taiwanese: 'Tai (台). Tai add up, then multiply a fixed stake — the scale is linear.',
     sourcing: {
       confidence: 'established',
@@ -226,12 +261,12 @@ export const PAYOUT_DIFFERENCES: readonly PayoutDifference[] = [
   },
   {
     topic: 'Win off a discard',
-    hongKong: 'The discarder pays the full amount; the other two pay nothing.',
-    taiwanese: 'The discarder pays the full amount; the other two pay nothing.',
+    hongKong: 'The discarder alone pays, at double the points. The other two pay nothing.',
+    taiwanese: 'The discarder alone pays the full amount. The other two pay nothing.',
     sourcing: {
       confidence: 'varies',
-      sources: ['https://partypotapp.com/blog/mahjong-scoring-beginners-guide/', 'https://4windsmj.com/kb/rules/taiwanese/rules05.htm'],
-      note: 'Classical Hong Kong play instead has the discarder pay double while the other two pay base. Both conventions are in use.',
+      sources: [HK_RULE_SHEET, 'https://4windsmj.com/kb/rules/taiwanese/rules05.htm'],
+      note: 'The Hong Kong figure follows the supplied rule sheet\'s "New Style" (出銃包三家). Other Hong Kong tables have the discarder pay face value, or use the classical version where the other two pay as well.',
     },
   },
   {

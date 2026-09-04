@@ -14,10 +14,11 @@ import { Badge, Card, Chip, Grid, Group, Paper, Stack, Table, Text, Title } from
 import {
   PAYOUT_DIFFERENCES,
   SCORING_BY_RULESET,
+  HK_POINTS_TABLE,
   FAAN_CONVERSION_SOURCING,
   HK_PAYMENT_SOURCING,
   TW_PAYMENT_SOURCING,
-  faanToUnits,
+  faanToPoints,
   taiToAmount,
   type PatternCategory,
 } from '../../core'
@@ -48,6 +49,10 @@ export function ScoringReferenceSection() {
   )
 
   const showChinese = terminology.language !== 'en'
+
+  /** Resolve a `replaces` id to the parent hand's name for display. */
+  const replacedName = (id: string) =>
+    scoring.patterns.find((pattern) => pattern.id === id)?.name ?? id
 
   return (
     <Stack gap="md">
@@ -87,7 +92,7 @@ export function ScoringReferenceSection() {
                   <Table.Tr>
                     <Table.Th style={{ width: 72 }}>{unit}</Table.Th>
                     <Table.Th>Hand</Table.Th>
-                    <Table.Th style={{ width: 104 }}>Source</Table.Th>
+                    <Table.Th style={{ width: 128 }}>Source</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -125,6 +130,11 @@ export function ScoringReferenceSection() {
                           <Text size="xs" c="dimmed" lh={1.45}>
                             {pattern.description}
                           </Text>
+                          {pattern.replaces && (
+                            <Text size="xs" c="yellow.5" lh={1.45}>
+                              Replaces {replacedName(pattern.replaces)} — count this instead, not both.
+                            </Text>
+                          )}
                           {pattern.beginnerNote && (
                             <Text size="xs" c="jade.4" lh={1.45}>
                               {pattern.beginnerNote}
@@ -221,7 +231,7 @@ function PayoutCard() {
   const { ruleset, t } = useSettings()
   const isHK = ruleset === 'hongKong'
   const unit = t(isHK ? 'faan' : 'tai')
-  const rows = isHK ? [3, 4, 5, 6, 7, 8, 9, 10] : [0, 1, 2, 3, 4, 5, 8, 16]
+  const rows = isHK ? HK_POINTS_TABLE.map((_, faan) => faan) : [0, 1, 2, 3, 4, 5, 8, 16]
 
   return (
     <Card withBorder radius="md" bg="dark.7" p="md">
@@ -229,7 +239,7 @@ function PayoutCard() {
         <Title order={5}>What it pays</Title>
         <Text size="xs" c="dimmed">
           {isHK
-            ? 'Each faan above the table minimum doubles the payout.'
+            ? 'The published chart from your rule sheet. Not a plain doubling — it tapers above 4 faan.'
             : 'Base stake plus a fixed amount per tai. Shown for a base of 3 and 2 per tai.'}
         </Text>
 
@@ -237,18 +247,18 @@ function PayoutCard() {
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{unit}</Table.Th>
-              <Table.Th>Each payer</Table.Th>
-              <Table.Th>Self-draw total</Table.Th>
+              <Table.Th>{isHK ? 'Points' : 'Each payer'}</Table.Th>
+              <Table.Th>{isHK ? 'Discarder pays' : 'Self-draw total'}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {rows.map((value) => {
-              const each = isHK ? faanToUnits(value) : taiToAmount(value)
+              const each = isHK ? faanToPoints(value) : taiToAmount(value)
               return (
                 <Table.Tr key={value}>
                   <Table.Td fw={600}>{value}</Table.Td>
                   <Table.Td>{each}</Table.Td>
-                  <Table.Td c="dimmed">{each * 3}</Table.Td>
+                  <Table.Td c="dimmed">{isHK ? each * 2 : each * 3}</Table.Td>
                 </Table.Tr>
               )
             })}
@@ -260,11 +270,11 @@ function PayoutCard() {
             Who pays
           </Text>
           <Text size="sm" lh={1.4}>
-            <b>Off a discard:</b> the player who discarded pays the whole amount. The other two pay nothing.
+            <b>Off a discard:</b> {isHK ? 'the discarder alone pays, at double the points' : 'the discarder alone pays the full amount'}. The other two pay nothing.
           </Text>
           <Text size="sm" lh={1.4} mt={4}>
-            <b>Self-draw:</b> all three opponents pay in full — and the self-draw itself is worth an extra{' '}
-            {unit}.
+            <b>Self-draw:</b> all three opponents pay the face-value points — and the self-draw itself is
+            worth an extra {unit}.
           </Text>
         </Paper>
 

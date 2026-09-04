@@ -16,7 +16,8 @@ import {
   term,
   termWithEnglish,
   TERMS,
-  faanToUnits,
+  faanToPoints,
+  HK_POINTS_TABLE,
   hongKongPayout,
   taiToAmount,
   taiwanesePayout,
@@ -217,43 +218,57 @@ describe('claim resolution', () => {
 // ---------------------------------------------------------------------------
 
 describe('hong kong payout', () => {
-  it('matches the published anchor: a 10-faan limit hand is 128 units at a 3-faan minimum', () => {
-    expect(faanToUnits(10)).toBe(128)
+  // Values transcribed from the Payment Table on the supplied rule sheet.
+  it('matches the published faan-to-points chart exactly', () => {
+    const published = [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384]
+    expect([...HK_POINTS_TABLE]).toEqual(published)
+    published.forEach((points, faan) => {
+      expect(faanToPoints(faan), `${faan} faan`).toBe(points)
+    })
   })
 
-  it('doubles per faan above the minimum', () => {
-    expect(faanToUnits(3)).toBe(1)
-    expect(faanToUnits(4)).toBe(2)
-    expect(faanToUnits(5)).toBe(4)
-    expect(faanToUnits(6)).toBe(8)
+  it('is not a plain doubling ladder above 4 faan', () => {
+    // 5 faan is 24, not 32 — the chart tapers. Getting this wrong overpays.
+    expect(faanToPoints(5)).toBe(24)
+    expect(faanToPoints(7)).toBe(48)
   })
 
-  it('clamps at the limit and at the minimum', () => {
-    expect(faanToUnits(13)).toBe(faanToUnits(10))
-    expect(faanToUnits(1)).toBe(1)
+  it('caps at the table limit', () => {
+    expect(faanToPoints(20)).toBe(384)
+    expect(faanToPoints(12, { minimumFaan: 3, limitFaan: 10, discardPayment: 'newStyle' })).toBe(128)
   })
 
-  it('charges only the discarder under the modern convention', () => {
+  it('charges the discarder double under the sheet\'s New Style convention', () => {
     const payout = hongKongPayout({ faan: 4, winnerSeat: 0, discarderSeat: 2 })
-    expect(payout.perSeat).toEqual({ 0: 0, 1: 0, 2: 2, 3: 0 })
-    expect(payout.winnerReceives).toBe(2)
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 0, 2: 32, 3: 0 })
+    expect(payout.winnerReceives).toBe(32)
   })
 
-  it('charges all three on a self-draw', () => {
+  it('charges all three face value on a self-draw', () => {
     const payout = hongKongPayout({ faan: 4, winnerSeat: 0 })
-    expect(payout.perSeat).toEqual({ 0: 0, 1: 2, 2: 2, 3: 2 })
-    expect(payout.winnerReceives).toBe(6)
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 16, 2: 16, 3: 16 })
+    expect(payout.winnerReceives).toBe(48)
   })
 
-  it('supports the classical discarder-pays-double convention', () => {
+  it('supports the face-value discard convention', () => {
     const payout = hongKongPayout({
       faan: 4,
       winnerSeat: 0,
       discarderSeat: 2,
-      rules: { minimumFaan: 3, limitFaan: 10, discardPayment: 'discarderDouble' },
+      rules: { minimumFaan: 3, limitFaan: 13, discardPayment: 'discarderOnly' },
     })
-    expect(payout.perSeat).toEqual({ 0: 0, 1: 2, 2: 4, 3: 2 })
-    expect(payout.winnerReceives).toBe(8)
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 0, 2: 16, 3: 0 })
+  })
+
+  it('supports the classical convention where everyone pays', () => {
+    const payout = hongKongPayout({
+      faan: 4,
+      winnerSeat: 0,
+      discarderSeat: 2,
+      rules: { minimumFaan: 3, limitFaan: 13, discardPayment: 'classical' },
+    })
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 16, 2: 32, 3: 16 })
+    expect(payout.winnerReceives).toBe(64)
   })
 })
 
@@ -291,6 +306,32 @@ describe('scoring tables', () => {
     }
   })
 
+  it('only ever replaces a pattern that exists', () => {
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const patterns = SCORING_BY_RULESET[ruleset].patterns
+      const ids = new Set(patterns.map((p) => p.id))
+      for (const pattern of patterns) {
+        if (pattern.replaces) {
+          expect(ids.has(pattern.replaces), `${pattern.id} replaces missing ${pattern.replaces}`).toBe(true)
+          expect(pattern.replaces).not.toBe(pattern.id)
+        }
+      }
+    }
+  })
+
+  it('scores a replacement higher than the pattern it replaces', () => {
+    // The whole point of `replaces` is that the bigger hand supersedes the
+    // smaller one. A replacement worth less would mean a transcription error.
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const patterns = SCORING_BY_RULESET[ruleset].patterns
+      for (const pattern of patterns) {
+        if (!pattern.replaces) continue
+        const parent = patterns.find((p) => p.id === pattern.replaces)!
+        expect(pattern.value, `${pattern.id} vs ${parent.id}`).toBeGreaterThan(parent.value)
+      }
+    }
+  })
+
   it('explains itself wherever confidence is not established', () => {
     for (const ruleset of ['hongKong', 'taiwanese'] as const) {
       for (const pattern of SCORING_BY_RULESET[ruleset].patterns) {
@@ -320,8 +361,9 @@ describe('scorekeeper', () => {
       id: 'h1',
       input: { ruleset: 'hongKong', winnerSeat: 0, discarderSeat: 2, score: 4 },
     })
+    // 4 faan = 16 points; the discarder alone pays double.
     const result = totals(state)
-    expect(result).toEqual({ 0: 2, 1: 0, 2: -2, 3: 0 })
+    expect(result).toEqual({ 0: 32, 1: 0, 2: -32, 3: 0 })
     expect(Object.values(result).reduce((a, b) => a + b, 0)).toBe(0)
   })
 
@@ -331,7 +373,8 @@ describe('scorekeeper', () => {
       id: 'h1',
       input: { ruleset: 'hongKong', winnerSeat: 1, score: 4 },
     })
-    expect(totals(state)).toEqual({ 0: -2, 1: 6, 2: -2, 3: -2 })
+    // 4 faan = 16 points; all three opponents pay face value.
+    expect(totals(state)).toEqual({ 0: -16, 1: 48, 2: -16, 3: -16 })
   })
 
   it('accumulates across hands and undoes the last one', () => {
@@ -346,11 +389,12 @@ describe('scorekeeper', () => {
       id: 'h2',
       input: { ruleset: 'hongKong', winnerSeat: 2, discarderSeat: 0, score: 3 },
     })
-    expect(totals(state)).toEqual({ 0: 3, 1: -4, 2: 1, 3: 0 })
+    // Hand 1: 5 faan = 24 points, doubled = 48. Hand 2: 3 faan = 8, doubled = 16.
+    expect(totals(state)).toEqual({ 0: 32, 1: -48, 2: 16, 3: 0 })
 
     state = scorekeeperReducer(state, { type: 'undo' })
     expect(state.hands).toHaveLength(1)
-    expect(totals(state)).toEqual({ 0: 4, 1: -4, 2: 0, 3: 0 })
+    expect(totals(state)).toEqual({ 0: 48, 1: -48, 2: 0, 3: 0 })
   })
 
   it('records a washout with nobody paying', () => {

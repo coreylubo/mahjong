@@ -85,23 +85,46 @@ is what makes the language toggle work everywhere at once.
 
 ## About the rules content
 
-⚠️ **Verify the scoring before you rely on it at a table.**
+**Hong Kong scoring is transcribed from a primary source.** The values, the
+faan-to-points payment chart, and the payment convention all come from the
+*Hong Kong Mahjong Rule Sheet* (香港麻雀正統牌型) v1.0, 3 April 2025, by
+/u/danma — the PDF supplied by the project owner. That includes its structural
+rule that indented hands **replace** their parent rather than adding to it (a
+Full Flush replaces a Mixed Flush), which is modelled as `replaces` in the data
+so the app can't double-count.
 
-Mahjong has no governing body. Values genuinely differ between regions, clubs
-and households, and the online sources disagree with each other in places.
+Taiwanese scoring has no equivalent primary source yet, and is still assembled
+from online references. Treat it as the weaker half.
 
-So no rule in this project was written from memory. Every scoring pattern,
-payout rule and procedure carries:
+⚠️ **Still worth verifying against your own table.** Mahjong has no governing
+body, and values genuinely differ between regions, clubs and households.
 
-- the **sources** it was drawn from, linked in the app itself,
+No rule in this project was written from memory. Every scoring pattern, payout
+rule and procedure carries:
+
+- the **sources** it was drawn from, shown in the app itself,
 - a **confidence marker** — `established`, `varies`, or `unverified`,
 - and a **note** wherever sources conflict, stating *both* readings rather than
   silently picking one.
 
-Known conflicts already flagged in the data include Full Flush (6 vs 7 faan),
-Little Three Dragons, the two Hong Kong discard-payment conventions, and most of
-the Taiwanese tai values above 4. A test enforces that anything not marked
-`established` explains itself.
+Conflicts between the supplied sheet and the online references, all flagged in
+the data:
+
+| Hand | Rule sheet | Online charts |
+| --- | --- | --- |
+| Full Flush | 7 faan | 6 faan |
+| All Honours | 10 faan | 13 (limit) |
+| Small Four Winds | 6 faan | 8, or limit |
+| Small Three Dragons | 5 faan | 2 on top of the dragon triplets |
+| Win by Kong Replacement | 2 faan, replacing Self-Pick | 1 faan on top of it |
+| All Concealed Triplets | 8 faan | limit hand |
+
+Several hands appear on the sheet alone (Double Kong Replacement, the flower
+bonuses, Blessing of Man) and are marked as such.
+
+A test enforces that anything not marked `established` explains itself, that
+`replaces` only ever points at a real pattern, and that the faan-to-points chart
+matches the sheet value for value.
 
 In the app, tap **Why?** next to any rule to see its sources.
 

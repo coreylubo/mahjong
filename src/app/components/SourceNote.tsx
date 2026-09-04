@@ -66,11 +66,18 @@ export function SourceNote({ sourcing, compact = false }: { sourcing: Sourced; c
             </Text>
             {sourcing.note && <Text size="sm">{sourcing.note}</Text>}
             <Stack gap={2}>
-              {sourcing.sources.map((url) => (
-                <Anchor key={url} href={url} target="_blank" rel="noreferrer" size="xs" lineClamp={1}>
-                  {url}
-                </Anchor>
-              ))}
+              {sourcing.sources.map((source) =>
+                source.startsWith('http') ? (
+                  <Anchor key={source} href={source} target="_blank" rel="noreferrer" size="xs" lineClamp={1}>
+                    {source}
+                  </Anchor>
+                ) : (
+                  // Offline provenance, e.g. a rule sheet supplied by the owner.
+                  <Text key={source} size="xs" c="jade.4">
+                    {source}
+                  </Text>
+                ),
+              )}
             </Stack>
           </Stack>
         </Paper>
