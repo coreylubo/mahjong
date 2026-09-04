@@ -8,6 +8,22 @@
       name="description"
       content="A beginner-first Hong Kong and Taiwanese mahjong reference, built for use live at the table."
     />
+
+    <!--
+      Add to Home Screen launches the app with no browser chrome at all.
+
+      This matters more here than for most sites: the app is landscape-first
+      and used at a table mid-hand, where Safari's address bar and tab strip
+      eat the vertical space the reference columns need — and they reappear on
+      every scroll. Installed, they are gone for good.
+
+      `black-translucent` lets the app's own dark ground run under the status
+      bar, which is why the viewport above sets `viewport-fit=cover`.
+    -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mahjong" />
     <title>Mahjong Reference</title>
   </head>
   <body>
