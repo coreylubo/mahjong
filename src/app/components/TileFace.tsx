@@ -96,30 +96,62 @@ function dotPips(rank: number): Pip[] {
   }
 }
 
-/** A pip: a coloured disc with a white four-pointed cut-out, as printed. */
+/**
+ * A pip, drawn as the concentric target it actually is.
+ *
+ * Real Dots tiles are not filled discs: each pip is a bullseye of alternating
+ * rings around a solid centre. That reads very differently at a glance, and it
+ * is how a player recognises the suit across the table, so it is worth drawing
+ * properly rather than as a blob.
+ *
+ * Ring weights are proportional to the pip radius so 9 Dots — where the pips
+ * are smallest — still resolves into rings instead of turning to mud.
+ */
 function Dot({ x, y, r, fill }: Pip) {
-  const arm = r * 1.5
-  const w = r * 0.4
   return (
     <g>
-      <circle cx={x} cy={y} r={r} fill={fill} />
-      <g transform={`rotate(45 ${x} ${y})`}>
-        <rect x={x - w / 2} y={y - arm / 2} width={w} height={arm} rx={w / 2} fill={FACE} />
-        <rect x={x - arm / 2} y={y - w / 2} width={arm} height={w} rx={w / 2} fill={FACE} />
-      </g>
+      {/* Pale ground, so the rings read as rings rather than as a filled disc. */}
+      <circle cx={x} cy={y} r={r} fill={fill} opacity={0.16} />
+      {/* Outer ring */}
+      <circle
+        cx={x}
+        cy={y}
+        r={r * 0.82}
+        fill="none"
+        stroke={fill}
+        strokeWidth={r * 0.34}
+      />
+      {/* Inner ring */}
+      <circle
+        cx={x}
+        cy={y}
+        r={r * 0.42}
+        fill="none"
+        stroke={fill}
+        strokeWidth={r * 0.22}
+      />
+      {/* Centre */}
+      <circle cx={x} cy={y} r={r * 0.15} fill={fill} />
     </g>
   )
 }
 
-/** 1 Dot is one large concentric target rather than a scaled-up pip. */
+/**
+ * 1 Dot is a single oversized target with more rings than the others, and it
+ * is the one pip that carries three colours rather than one.
+ */
 function SingleDot() {
+  const ring = (r: number, stroke: string, w: number) => (
+    <circle cx={30} cy={42} r={r} fill="none" stroke={stroke} strokeWidth={w} />
+  )
   return (
     <g>
-      <circle cx={30} cy={42} r={15} fill={BLUE} />
-      <circle cx={30} cy={42} r={12.5} fill={FACE} />
-      <circle cx={30} cy={42} r={10.5} fill={GREEN} />
-      <circle cx={30} cy={42} r={8} fill={FACE} />
-      <Dot x={30} y={42} r={6.5} fill={RED} />
+      <circle cx={30} cy={42} r={16} fill={BLUE} opacity={0.12} />
+      {ring(15, BLUE, 2.6)}
+      {ring(11.4, GREEN, 2.4)}
+      {ring(7.8, RED, 2.2)}
+      {ring(4.4, GREEN, 1.8)}
+      <circle cx={30} cy={42} r={1.9} fill={RED} />
     </g>
   )
 }
