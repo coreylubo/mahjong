@@ -173,7 +173,13 @@ In the app, tap **Why?** next to any rule to see its sources.
 ## What's in V1
 
 Setup · Turn Flow · Tile Reference · Melds & Actions · Scoring Reference ·
-Scorekeeper, with ruleset and terminology toggles throughout.
+Scorekeeper, reached from a floating menu in the lower left.
+
+Ruleset and terminology sit behind **Table settings** in that same menu. They
+are decisions a table makes once before the first hand, so they do not earn
+permanent screen furniture — and in landscape on a phone, the width a nav rail
+and the height a title bar used to take are exactly what the reference tables
+need.
 
 **Setup** covers everything before the first discard, split by how often you
 actually do it: settling seats and the first dealer happens once per game,
