@@ -17,7 +17,9 @@ import {
   termWithEnglish,
   TERMS,
   faanToPoints,
-  HK_POINTS_TABLE,
+  HK_POINTS_TABLE_NEW_STYLE,
+  HK_POINTS_TABLE_CLASSICAL,
+  classicalDoublings,
   hongKongPayout,
   taiToAmount,
   taiwanesePayout,
@@ -217,11 +219,11 @@ describe('claim resolution', () => {
 // Scoring and payout
 // ---------------------------------------------------------------------------
 
-describe('hong kong payout', () => {
-  // Values transcribed from the Payment Table on the supplied rule sheet.
-  it('matches the published faan-to-points chart exactly', () => {
+describe('hong kong payout — New Style', () => {
+  // Transcribed from the Payment Table on the supplied New Style rule sheet.
+  it('matches the published chart exactly', () => {
     const published = [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384]
-    expect([...HK_POINTS_TABLE]).toEqual(published)
+    expect([...HK_POINTS_TABLE_NEW_STYLE]).toEqual(published)
     published.forEach((points, faan) => {
       expect(faanToPoints(faan), `${faan} faan`).toBe(points)
     })
@@ -235,10 +237,10 @@ describe('hong kong payout', () => {
 
   it('caps at the table limit', () => {
     expect(faanToPoints(20)).toBe(384)
-    expect(faanToPoints(12, { minimumFaan: 3, limitFaan: 10, discardPayment: 'newStyle' })).toBe(128)
+    expect(faanToPoints(12, { minimumFaan: 3, limitFaan: 10, paymentStyle: 'newStyle' })).toBe(128)
   })
 
-  it('charges the discarder double under the sheet\'s New Style convention', () => {
+  it('charges the discarder double and nobody else', () => {
     const payout = hongKongPayout({ faan: 4, winnerSeat: 0, discarderSeat: 2 })
     expect(payout.perSeat).toEqual({ 0: 0, 1: 0, 2: 32, 3: 0 })
     expect(payout.winnerReceives).toBe(32)
@@ -250,25 +252,99 @@ describe('hong kong payout', () => {
     expect(payout.winnerReceives).toBe(48)
   })
 
-  it('supports the face-value discard convention', () => {
-    const payout = hongKongPayout({
-      faan: 4,
-      winnerSeat: 0,
-      discarderSeat: 2,
-      rules: { minimumFaan: 3, limitFaan: 13, discardPayment: 'discarderOnly' },
+  it('ignores the dealer seat entirely', () => {
+    const withDealer = hongKongPayout({ faan: 4, winnerSeat: 0, discarderSeat: 2, dealerSeat: 2 })
+    const without = hongKongPayout({ faan: 4, winnerSeat: 0, discarderSeat: 2 })
+    expect(withDealer.perSeat).toEqual(without.perSeat)
+  })
+})
+
+describe('hong kong payout — Classical', () => {
+  const CLASSICAL = { minimumFaan: 0, limitFaan: 13, paymentStyle: 'classical' as const }
+
+  it('matches the published banded chart exactly', () => {
+    // Sheet prints bands: 0, 1, 2, 3, then 4-6, 7-9, 10-12, 13+.
+    const published = [1, 2, 4, 8, 16, 16, 16, 32, 32, 32, 64, 64, 64, 128]
+    expect([...HK_POINTS_TABLE_CLASSICAL]).toEqual(published)
+    published.forEach((points, faan) => {
+      expect(faanToPoints(faan, CLASSICAL), `${faan} faan`).toBe(points)
     })
-    expect(payout.perSeat).toEqual({ 0: 0, 1: 0, 2: 16, 3: 0 })
   })
 
-  it('supports the classical convention where everyone pays', () => {
+  it('bands consecutive faan to the same points', () => {
+    expect(faanToPoints(4, CLASSICAL)).toBe(faanToPoints(6, CLASSICAL))
+    expect(faanToPoints(7, CLASSICAL)).toBe(faanToPoints(9, CLASSICAL))
+    // ...and is flatter than New Style at the top end.
+    expect(faanToPoints(13, CLASSICAL)).toBeLessThan(faanToPoints(13))
+  })
+
+  it('counts the doublings the sheet lists, and stacks them', () => {
+    // Non-dealer wins off a non-dealer; seat 0 deals and loses.
+    const win = { winnerSeat: 1, discarderSeat: 2, dealerSeat: 0 }
+    expect(classicalDoublings(3, win)).toBe(0) // uninvolved
+    expect(classicalDoublings(2, win)).toBe(1) // fed the winning tile
+    expect(classicalDoublings(0, win)).toBe(1) // dealer, lost
+
+    // Dealer self-draws: self-pick doubles everyone, dealer-wins doubles again.
+    const dealerSelfDraw = { winnerSeat: 0, discarderSeat: undefined, dealerSeat: 0 }
+    expect(classicalDoublings(1, dealerSelfDraw)).toBe(2)
+
+    // Dealer discards into a non-dealer's win: the dealer is both the
+    // discarder and the losing dealer, so two doublings stack.
+    const dealerDealsIn = { winnerSeat: 1, discarderSeat: 0, dealerSeat: 0 }
+    expect(classicalDoublings(0, dealerDealsIn)).toBe(2)
+  })
+
+  it('charges everyone, with the discarder and the dealer doubled', () => {
     const payout = hongKongPayout({
-      faan: 4,
-      winnerSeat: 0,
+      faan: 5, // base 16 under Classical
+      winnerSeat: 1,
       discarderSeat: 2,
-      rules: { minimumFaan: 3, limitFaan: 13, discardPayment: 'classical' },
+      dealerSeat: 0,
+      rules: CLASSICAL,
     })
-    expect(payout.perSeat).toEqual({ 0: 0, 1: 16, 2: 32, 3: 16 })
-    expect(payout.winnerReceives).toBe(64)
+    expect(payout.perSeat).toEqual({ 0: 32, 1: 0, 2: 32, 3: 16 })
+    expect(payout.winnerReceives).toBe(80)
+  })
+
+  it('quadruples every payment when the dealer self-draws', () => {
+    const payout = hongKongPayout({
+      faan: 5,
+      winnerSeat: 0,
+      dealerSeat: 0,
+      rules: CLASSICAL,
+    })
+    expect(payout.perSeat).toEqual({ 0: 0, 1: 64, 2: 64, 3: 64 })
+    expect(payout.winnerReceives).toBe(192)
+  })
+
+  it('charges a dealer who deals in 4x — both doublings stack', () => {
+    const payout = hongKongPayout({
+      faan: 5,
+      winnerSeat: 1,
+      discarderSeat: 0,
+      dealerSeat: 0,
+      rules: CLASSICAL,
+    })
+    expect(payout.perSeat[0]).toBe(64)
+    expect(payout.perSeat[2]).toBe(16)
+  })
+
+  it('still pays out, and says so, when no dealer seat is given', () => {
+    const payout = hongKongPayout({ faan: 5, winnerSeat: 1, discarderSeat: 2, rules: CLASSICAL })
+    expect(payout.perSeat).toEqual({ 0: 16, 1: 0, 2: 32, 3: 16 })
+    expect(payout.explanation).toMatch(/Dealer doubling not applied/)
+  })
+
+  it('always leaves the winner paying nothing', () => {
+    for (const discarderSeat of [undefined, 0, 2, 3]) {
+      for (const dealerSeat of [0, 1, 2, 3]) {
+        const payout = hongKongPayout({ faan: 6, winnerSeat: 1, discarderSeat, dealerSeat, rules: CLASSICAL })
+        expect(payout.perSeat[1]).toBe(0)
+        const collected = Object.values(payout.perSeat).reduce((a, b) => a + b, 0)
+        expect(payout.winnerReceives).toBe(collected)
+      }
+    }
   })
 })
 
@@ -356,6 +432,7 @@ describe('scorekeeper', () => {
   })
 
   it('records a discard win with deltas that sum to zero', () => {
+    // Defaults to the New Style payment system.
     const state = scorekeeperReducer(createScorekeeper(), {
       type: 'recordWin',
       id: 'h1',

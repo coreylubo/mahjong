@@ -52,6 +52,8 @@ export interface RecordWinInput {
   winnerSeat: number
   /** Omit for a self-draw. */
   discarderSeat?: number
+  /** Seat holding the deal. Used by the Hong Kong Classical payment system. */
+  dealerSeat?: number
   score: number
   hkRules?: HongKongTableRules
   twRules?: TaiwaneseTableRules
@@ -95,6 +97,7 @@ export function scorekeeperReducer(
               faan: input.score,
               winnerSeat: input.winnerSeat,
               discarderSeat: input.discarderSeat,
+              dealerSeat: input.dealerSeat,
               rules: input.hkRules,
             })
           : taiwanesePayout({

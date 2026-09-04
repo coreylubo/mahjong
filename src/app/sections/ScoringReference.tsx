@@ -9,12 +9,13 @@
  * provenance — see the standing note at the top (spec §8).
  */
 import { useMemo, useState } from 'react'
-import { Badge, Card, Chip, Grid, Group, Paper, Stack, Table, Text, Title } from '@mantine/core'
+import { Badge, Card, Chip, Grid, Group, Paper, SegmentedControl, Stack, Table, Text, Title } from '@mantine/core'
 
 import {
   PAYOUT_DIFFERENCES,
   SCORING_BY_RULESET,
-  HK_POINTS_TABLE,
+  hkPointsTable,
+  classicalDoublings,
   FAAN_CONVERSION_SOURCING,
   HK_PAYMENT_SOURCING,
   TW_PAYMENT_SOURCING,
@@ -22,7 +23,7 @@ import {
   taiToAmount,
   type PatternCategory,
 } from '../../core'
-import { RULESET_LABELS, useSettings } from '../settings'
+import { PAYMENT_STYLE_LABELS, RULESET_LABELS, useSettings } from '../settings'
 import { ConfidenceBadge, SourceNote, VerifyBanner } from '../components/SourceNote'
 
 const CATEGORIES: { value: PatternCategory | 'all'; label: string }[] = [
@@ -228,32 +229,57 @@ export function ScoringReferenceSection() {
 
 /** The "what does that actually cost me" panel. */
 function PayoutCard() {
-  const { ruleset, t } = useSettings()
+  const { ruleset, t, hkPaymentStyle, setHkPaymentStyle } = useSettings()
   const isHK = ruleset === 'hongKong'
   const unit = t(isHK ? 'faan' : 'tai')
-  const rows = isHK ? HK_POINTS_TABLE.map((_, faan) => faan) : [0, 1, 2, 3, 4, 5, 8, 16]
+  const isClassical = isHK && hkPaymentStyle === 'classical'
+  const rows = isHK ? hkPointsTable(hkPaymentStyle).map((_, faan) => faan) : [0, 1, 2, 3, 4, 5, 8, 16]
 
   return (
     <Card withBorder radius="md" bg="dark.7" p="md">
       <Stack gap="sm">
         <Title order={5}>What it pays</Title>
-        <Text size="xs" c="dimmed">
-          {isHK
-            ? 'The published chart from your rule sheet. Not a plain doubling — it tapers above 4 faan.'
-            : 'Base stake plus a fixed amount per tai. Shown for a base of 3 and 2 per tai.'}
-        </Text>
 
-        <Table verticalSpacing={6} horizontalSpacing="sm" withColumnBorders={false}>
+        {isHK && (
+          <Stack gap={4}>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+              Payment system
+            </Text>
+            <SegmentedControl
+              fullWidth
+              size="xs"
+              value={hkPaymentStyle}
+              onChange={(value) => setHkPaymentStyle(value as 'newStyle' | 'classical')}
+              data={(['newStyle', 'classical'] as const).map((style) => ({
+                value: style,
+                label: PAYMENT_STYLE_LABELS[style],
+              }))}
+            />
+            <Text size="xs" c="dimmed" lh={1.4}>
+              {isClassical
+                ? 'Traditional. Flatter chart, banded by faan. Everyone pays every hand.'
+                : 'Modern (出銃包三家). Steeper chart. On a discard, only the discarder pays.'}
+            </Text>
+          </Stack>
+        )}
+
+        {!isHK && (
+          <Text size="xs" c="dimmed">
+            Base stake plus a fixed amount per tai. Shown for a base of 3 and 2 per tai.
+          </Text>
+        )}
+
+        <Table verticalSpacing={4} horizontalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{unit}</Table.Th>
               <Table.Th>{isHK ? 'Points' : 'Each payer'}</Table.Th>
-              <Table.Th>{isHK ? 'Discarder pays' : 'Self-draw total'}</Table.Th>
+              <Table.Th>{isHK ? (isClassical ? 'Fed the win' : 'Discarder pays') : 'Self-draw total'}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {rows.map((value) => {
-              const each = isHK ? faanToPoints(value) : taiToAmount(value)
+              const each = isHK ? faanToPoints(value, { minimumFaan: 0, limitFaan: 13, paymentStyle: hkPaymentStyle }) : taiToAmount(value)
               return (
                 <Table.Tr key={value}>
                   <Table.Td fw={600}>{value}</Table.Td>
@@ -269,18 +295,102 @@ function PayoutCard() {
           <Text size="sm" fw={600} mb={2}>
             Who pays
           </Text>
-          <Text size="sm" lh={1.4}>
-            <b>Off a discard:</b> {isHK ? 'the discarder alone pays, at double the points' : 'the discarder alone pays the full amount'}. The other two pay nothing.
-          </Text>
-          <Text size="sm" lh={1.4} mt={4}>
-            <b>Self-draw:</b> all three opponents pay the face-value points — and the self-draw itself is
-            worth an extra {unit}.
-          </Text>
+          {isClassical ? (
+            <>
+              <Text size="sm" lh={1.4}>
+                <b>Everyone pays, every hand.</b> Each payment then doubles for each of these that applies:
+              </Text>
+              <Stack gap={2} mt={4}>
+                {[
+                  'They discarded the winning tile',
+                  'The win was a self-draw — all payers',
+                  'The dealer won — all payers',
+                  'The payer is the dealer, and lost',
+                ].map((reason) => (
+                  <Text key={reason} size="sm" lh={1.4}>
+                    ×2 &nbsp;{reason}
+                  </Text>
+                ))}
+              </Stack>
+              <Text size="xs" c="yellow.4" lh={1.4} mt={4}>
+                The doublings stack. A dealer who deals into a self-drawn hand can pay 4× or 8× the base.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text size="sm" lh={1.4}>
+                <b>Off a discard:</b> {isHK ? 'the discarder alone pays, at double the points' : 'the discarder alone pays the full amount'}. The other two pay nothing.
+              </Text>
+              <Text size="sm" lh={1.4} mt={4}>
+                <b>Self-draw:</b> all three opponents pay the face-value points — and the self-draw itself is
+                worth an extra {unit}.
+              </Text>
+            </>
+          )}
         </Paper>
 
-        <SourceNote sourcing={isHK ? HK_PAYMENT_SOURCING : TW_PAYMENT_SOURCING} />
-        {isHK && <SourceNote sourcing={FAAN_CONVERSION_SOURCING} />}
+        {isHK && isClassical && <ClassicalWorkedExample />}
+
+        <Stack gap={6}>
+          <Group gap={8} wrap="nowrap">
+            <Text size="xs" c="dimmed" w={72}>
+              Who pays
+            </Text>
+            <SourceNote sourcing={isHK ? HK_PAYMENT_SOURCING : TW_PAYMENT_SOURCING} />
+          </Group>
+          {isHK && (
+            <Group gap={8} wrap="nowrap">
+              <Text size="xs" c="dimmed" w={72}>
+                The chart
+              </Text>
+              <SourceNote sourcing={FAAN_CONVERSION_SOURCING} />
+            </Group>
+          )}
+        </Stack>
       </Stack>
     </Card>
+  )
+}
+
+/**
+ * Classical stacking is hard to hold in your head mid-hand, so show it working
+ * on a concrete hand rather than asking the player to do the multiplication.
+ */
+function ClassicalWorkedExample() {
+  const faan = 5
+  const rules = { minimumFaan: 0, limitFaan: 13, paymentStyle: 'classical' as const }
+  const base = faanToPoints(faan, rules)
+  // Seat 1 wins off seat 2; seat 0 is the dealer and loses.
+  const win = { winnerSeat: 1, discarderSeat: 2, dealerSeat: 0 }
+  const seats = [
+    { seat: 0, label: 'Dealer' },
+    { seat: 2, label: 'Discarder' },
+    { seat: 3, label: 'Third player' },
+  ]
+
+  return (
+    <Paper p="sm" radius="sm" bg="dark.6">
+      <Text size="sm" fw={600} mb={4}>
+        Worked example — {faan} faan, base {base}
+      </Text>
+      <Text size="xs" c="dimmed" lh={1.4} mb={6}>
+        A non-dealer wins off another non-dealer. The dealer is a third player and loses.
+      </Text>
+      {seats.map(({ seat, label }) => {
+        const doublings = classicalDoublings(seat, win)
+        return (
+          <Group key={seat} justify="space-between" gap={6} wrap="nowrap">
+            <Text size="sm">{label}</Text>
+            <Text size="sm" c="dimmed">
+              {base}
+              {doublings > 0 ? ` × 2${doublings > 1 ? `^${doublings}` : ''}` : ''} ={' '}
+              <Text span fw={700} c="jade.3">
+                {base * 2 ** doublings}
+              </Text>
+            </Text>
+          </Group>
+        )
+      })}
+    </Paper>
   )
 }

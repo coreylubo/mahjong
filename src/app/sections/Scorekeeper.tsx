@@ -32,10 +32,14 @@ import {
 import { useSettings } from '../settings'
 
 export function ScorekeeperSection() {
-  const { ruleset, t } = useSettings()
+  const { ruleset, t, hkPaymentStyle } = useSettings()
   const [state, dispatch] = useReducer(scorekeeperReducer, undefined, () => createScorekeeper())
   const [winnerSeat, setWinnerSeat] = useState(0)
   const [discarderSeat, setDiscarderSeat] = useState<number | 'self'>('self')
+  // Only the Hong Kong Classical system prices the dealer differently, so the
+  // control only appears when it would actually change the numbers.
+  const [dealerSeat, setDealerSeat] = useState(0)
+  const needsDealer = ruleset === 'hongKong' && hkPaymentStyle === 'classical'
   const [score, setScore] = useState<number>(SCORING_BY_RULESET[ruleset].minimum.common)
 
   const unit = t(SCORING_BY_RULESET[ruleset].unitTermKey)
@@ -50,7 +54,9 @@ export function ScorekeeperSection() {
         ruleset,
         winnerSeat,
         discarderSeat: discarderSeat === 'self' ? undefined : discarderSeat,
+        dealerSeat: needsDealer ? dealerSeat : undefined,
         score,
+        hkRules: { minimumFaan: 0, limitFaan: 13, paymentStyle: hkPaymentStyle },
       },
     })
   }
@@ -93,11 +99,27 @@ export function ScorekeeperSection() {
                 ]}
               />
               <Text size="xs" c="dimmed">
-                {discarderSeat === 'self'
-                  ? 'All three opponents pay.'
-                  : 'Only the player who discarded pays.'}
+                {needsDealer
+                  ? 'Classical: everyone pays, and the doublings stack.'
+                  : discarderSeat === 'self'
+                    ? 'All three opponents pay.'
+                    : 'Only the player who discarded pays, at double.'}
               </Text>
             </Stack>
+
+            {needsDealer && (
+              <Stack gap={4}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Dealer
+                </Text>
+                <SegmentedControl
+                  fullWidth
+                  value={String(dealerSeat)}
+                  onChange={(value) => setDealerSeat(Number(value))}
+                  data={seatOptions}
+                />
+              </Stack>
+            )}
 
             <NumberInput
               label={`${unit} scored`}
@@ -139,6 +161,7 @@ export function ScorekeeperSection() {
             </Group>
 
             <Text size="xs" c="dimmed">
+              {ruleset === 'hongKong' ? `Hong Kong, ${hkPaymentStyle === 'classical' ? 'Classical' : 'New Style'} payments. ` : ''}
               Scores are held in memory only. Refreshing the page clears them.
             </Text>
           </Stack>

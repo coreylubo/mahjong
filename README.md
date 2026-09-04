@@ -85,13 +85,36 @@ is what makes the language toggle work everywhere at once.
 
 ## About the rules content
 
-**Hong Kong scoring is transcribed from a primary source.** The values, the
-faan-to-points payment chart, and the payment convention all come from the
-*Hong Kong Mahjong Rule Sheet* (香港麻雀正統牌型) v1.0, 3 April 2025, by
-/u/danma — the PDF supplied by the project owner. That includes its structural
+**Hong Kong scoring is transcribed from primary sources.** The hand values come
+from the *Hong Kong Mahjong Rule Sheet* (香港麻雀正統牌型) v1.0, 3 April 2025, by
+/u/danma — the PDFs supplied by the project owner. That includes its structural
 rule that indented hands **replace** their parent rather than adding to it (a
 Full Flush replaces a Mixed Flush), which is modelled as `replaces` in the data
 so the app can't double-count.
+
+### Two Hong Kong payment systems
+
+Hong Kong tables use one of two payment systems, and the app supports both. The
+choice decides **both** the points chart and who pays what — they're a matched
+pair, which is why they're one setting rather than two:
+
+| | New Style (出銃包三家) | Classical |
+| --- | --- | --- |
+| Chart | Steep, every faan priced separately | Flatter, banded (4-6 all pay 16) |
+| 5 faan | 24 points | 16 points |
+| 13+ faan | 384 points | 128 points |
+| Off a discard | Discarder alone pays, at **double** | Everyone pays; discarder's doubles |
+| Self-draw | All three pay face value | Everyone pays, **all doubled** |
+| Dealer | No effect | Dealer wins → all payments double. Dealer loses → dealer's doubles |
+
+Classical doublings **stack multiplicatively**. A dealer who deals into a
+self-drawn hand pays 4× the base; the worked example in the app shows this on a
+real hand rather than asking you to do the arithmetic mid-game.
+
+The fan tables on the two sheets are identical — only the payment half differs.
+
+Switch systems in **Scoring → What it pays**. The Scorekeeper follows the same
+setting, and asks for the dealer's seat when Classical needs it.
 
 Taiwanese scoring has no equivalent primary source yet, and is still assembled
 from online references. Treat it as the weaker half.
@@ -118,6 +141,9 @@ the data:
 | Small Three Dragons | 5 faan | 2 on top of the dragon triplets |
 | Win by Kong Replacement | 2 faan, replacing Self-Pick | 1 faan on top of it |
 | All Concealed Triplets | 8 faan | limit hand |
+
+A third payment convention — the discarder alone paying face value — appears in
+some online guides but is on neither sheet, so it isn't implemented.
 
 Several hands appear on the sheet alone (Double Kong Replacement, the flower
 bonuses, Blessing of Man) and are marked as such.

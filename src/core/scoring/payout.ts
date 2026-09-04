@@ -16,84 +16,93 @@
 import type { Sourced } from '../types'
 
 /**
- * The rule sheet supplied by the project owner. Not a URL — the UI renders
+ * The rule sheets supplied by the project owner. Not URLs — the UI renders
  * non-link sources as plain text.
+ *
+ * The two sheets carry an IDENTICAL faan table; they differ only in the
+ * payment table and the payment rules that go with it. So `HK_RULE_SHEET`
+ * cites the shared hand scoring, and the two style-specific constants cite the
+ * payment halves.
  */
-export const HK_RULE_SHEET = 'Hong Kong Mahjong Rule Sheet v1.0 (3 April 2025) by /u/danma — PDF supplied by the project owner'
+export const HK_RULE_SHEET =
+  'Hong Kong Mahjong Rule Sheet v1.0 (3 April 2025) by /u/danma — PDF supplied by the project owner'
+export const HK_RULE_SHEET_NEW_STYLE = `${HK_RULE_SHEET} (New Style payment table)`
+export const HK_RULE_SHEET_CLASSICAL = `${HK_RULE_SHEET} (Classical payment table)`
 
 // ---------------------------------------------------------------------------
 // Hong Kong
 // ---------------------------------------------------------------------------
 
 /**
- * Payment convention on a win off a discard. All three are in real use.
+ * Hong Kong tables use one of two payment systems, and the choice decides BOTH
+ * the faan → points chart AND who pays what. They are a matched pair, not two
+ * independent settings — which is why this is one enum rather than two.
  *
- * 'newStyle'   — 出銃包三家, "the discarder pays all". The discarder alone
- *                pays, at DOUBLE the points. This is the convention printed on
- *                the rule sheet the project owner supplied, and is the default.
- * 'discarderOnly' — the discarder alone pays, at face value.
- * 'classical'  — the discarder pays double AND the other two each pay face
- *                value.
+ * 'newStyle'  — 出銃包三家, "the discarder pays all". Steeper chart, and on a
+ *               discard the discarder alone pays, at double the points.
+ * 'classical' — the traditional system. Flatter, banded chart, everyone pays
+ *               every hand, and the payments double for various reasons which
+ *               stack multiplicatively (see `classicalMultiplier`).
  *
- * Self-draw is the same under all three: every opponent pays face value.
+ * Both are transcribed from the rule sheets supplied by the project owner.
  */
-export type DiscardPayment = 'newStyle' | 'discarderOnly' | 'classical'
+export type PaymentStyle = 'newStyle' | 'classical'
 
 export interface HongKongTableRules {
   /** Faan needed to declare a win. */
   minimumFaan: number
   /** Faan at which the payout stops climbing. */
   limitFaan: number
-  discardPayment: DiscardPayment
+  paymentStyle: PaymentStyle
 }
 
 export const DEFAULT_HK_RULES: HongKongTableRules = {
   minimumFaan: 3,
   limitFaan: 13,
-  discardPayment: 'newStyle',
+  paymentStyle: 'newStyle',
 }
 
 /**
- * The published faan → points chart ("New Style").
+ * New Style faan → points. Index = faan; 13 and above all pay 384.
  *
- * Transcribed directly from the Payment Table on the Hong Kong Mahjong Rule
- * Sheet v1.0 supplied by the project owner. Note that it is NOT a plain
- * doubling ladder: it doubles to 4 faan, then advances in two interleaved
- * doubling series (16→32→64→128→256 and 24→48→96→192→384), which is the usual
- * Hong Kong tapering. Index = faan; 13 and above all pay 384.
+ * Not a plain doubling ladder: it doubles to 4 faan, then runs two interleaved
+ * doubling series (16→32→64→128→256 and 24→48→96→192→384).
  */
-export const HK_POINTS_TABLE: readonly number[] = [
-  1, // 0 faan — a "chicken hand", only playable where the table has no minimum
-  2, // 1
-  4, // 2
-  8, // 3
-  16, // 4
-  24, // 5
-  32, // 6
-  48, // 7
-  64, // 8
-  96, // 9
-  128, // 10
-  192, // 11
-  256, // 12
-  384, // 13+
+export const HK_POINTS_TABLE_NEW_STYLE: readonly number[] = [
+  1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384,
 ]
+
+/**
+ * Classical faan → points. Index = faan; 13 and above all pay 128.
+ *
+ * The sheet prints this in bands — 0, 1, 2, 3, then 4-6, 7-9, 10-12, 13+ — so
+ * consecutive faan often pay the same. Expanded per-faan here so lookups stay
+ * a plain index.
+ */
+export const HK_POINTS_TABLE_CLASSICAL: readonly number[] = [
+  1, 2, 4, 8, 16, 16, 16, 32, 32, 32, 64, 64, 64, 128,
+]
+
+export function hkPointsTable(style: PaymentStyle): readonly number[] {
+  return style === 'classical' ? HK_POINTS_TABLE_CLASSICAL : HK_POINTS_TABLE_NEW_STYLE
+}
 
 /** Look up the base points a hand is worth, capping at the table's limit. */
 export function faanToPoints(faan: number, rules: HongKongTableRules = DEFAULT_HK_RULES): number {
-  const capped = Math.min(Math.max(faan, 0), rules.limitFaan, HK_POINTS_TABLE.length - 1)
-  return HK_POINTS_TABLE[capped]!
+  const table = hkPointsTable(rules.paymentStyle)
+  const capped = Math.min(Math.max(faan, 0), rules.limitFaan, table.length - 1)
+  return table[capped]!
 }
 
 export const FAAN_CONVERSION_SOURCING: Sourced = {
   confidence: 'varies',
   sources: [
-    HK_RULE_SHEET,
+    HK_RULE_SHEET_NEW_STYLE,
+    HK_RULE_SHEET_CLASSICAL,
     'https://mahjong.wikidot.com/rules:hong-kong-old-style-scoring',
-    'https://en.wikipedia.org/wiki/Hong_Kong_mahjong_scoring_rules',
   ],
   note:
-    'Transcribed from the "New Style" Payment Table on the supplied rule sheet. Other charts are in circulation — some flatten differently above 6 faan, and tables that cap below 13 faan simply stop the chart early. Check your table\'s own chart.',
+    'Both charts are transcribed from the supplied rule sheets. New Style climbs steeply and prices every faan separately; Classical is flatter and bands faan together (4-6 all pay 16, 7-9 all pay 32, and so on). Which one your table uses changes the payout dramatically — a 5 faan hand is 24 points under New Style and 16 under Classical, and the two systems distribute the cost completely differently.',
 }
 
 export interface PayoutBreakdown {
@@ -110,11 +119,73 @@ export interface HongKongWin {
   winnerSeat: number
   /** Seat that discarded the winning tile, or undefined for a self-draw. */
   discarderSeat?: number
+  /**
+   * Seat holding the deal. Only used by the Classical system, which doubles
+   * payments involving the dealer. Ignored under New Style.
+   */
+  dealerSeat?: number
   rules?: HongKongTableRules
+}
+
+/**
+ * How many times a single payer's Classical payment doubles.
+ *
+ * From the sheet: "When winning by discard, the discarding player's payment
+ * doubles. When winning by self pick, all players' payments double. If East
+ * player wins, all players' payments double. If East player loses, East
+ * player's payment doubles. (All payment doubling stacks if multiple cases
+ * apply)."
+ *
+ * Returned as a count of doublings so the stacking is visible rather than
+ * buried in arithmetic.
+ */
+export function classicalDoublings(
+  payerSeat: number,
+  win: Pick<HongKongWin, 'winnerSeat' | 'discarderSeat' | 'dealerSeat'>,
+): number {
+  let doublings = 0
+  if (win.discarderSeat === undefined) {
+    doublings += 1 // Self-pick: every payment doubles.
+  } else if (payerSeat === win.discarderSeat) {
+    doublings += 1 // Only the player who fed the winning tile.
+  }
+  if (win.dealerSeat !== undefined) {
+    if (win.dealerSeat === win.winnerSeat) {
+      doublings += 1 // Dealer won: everyone's payment doubles.
+    } else if (payerSeat === win.dealerSeat) {
+      doublings += 1 // Dealer lost: only the dealer's own payment doubles.
+    }
+  }
+  return doublings
+}
+
+function classicalPayout(win: HongKongWin, rules: HongKongTableRules): PayoutBreakdown {
+  const points = faanToPoints(win.faan, rules)
+  const perSeat: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 }
+
+  for (let seat = 0; seat < 4; seat += 1) {
+    if (seat === win.winnerSeat) continue
+    perSeat[seat] = points * 2 ** classicalDoublings(seat, win)
+  }
+
+  const total = Object.values(perSeat).reduce((sum, amount) => sum + amount, 0)
+  const how = win.discarderSeat === undefined ? 'Self-draw' : 'Win off a discard'
+  const dealerNote =
+    win.dealerSeat === undefined
+      ? ' Dealer doubling not applied — no dealer seat was set.'
+      : ''
+
+  return {
+    winnerReceives: total,
+    perSeat,
+    explanation: `${how} at ${win.faan} faan, Classical (${points} points base). Everyone pays; doublings stack.${dealerNote}`,
+  }
 }
 
 export function hongKongPayout(win: HongKongWin): PayoutBreakdown {
   const rules = win.rules ?? DEFAULT_HK_RULES
+  if (rules.paymentStyle === 'classical') return classicalPayout(win, rules)
+
   const points = faanToPoints(win.faan, rules)
   const perSeat: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 }
 
@@ -130,45 +201,24 @@ export function hongKongPayout(win: HongKongWin): PayoutBreakdown {
     }
   }
 
-  if (rules.discardPayment === 'discarderOnly') {
-    perSeat[win.discarderSeat] = points
-    return {
-      winnerReceives: points,
-      perSeat,
-      explanation: `Win off a discard at ${win.faan} faan. Only the discarder pays, ${points}.`,
-    }
-  }
-
-  if (rules.discardPayment === 'newStyle') {
-    perSeat[win.discarderSeat] = points * 2
-    return {
-      winnerReceives: points * 2,
-      perSeat,
-      explanation: `Win off a discard at ${win.faan} faan (${points} points). The discarder alone pays double, ${points * 2}.`,
-    }
-  }
-
-  // Classical: discarder pays double, the other two pay face value.
-  for (let seat = 0; seat < 4; seat += 1) {
-    if (seat === win.winnerSeat) continue
-    perSeat[seat] = seat === win.discarderSeat ? points * 2 : points
-  }
+  // New Style on a discard: the discarder alone pays, at double.
+  perSeat[win.discarderSeat] = points * 2
   return {
-    winnerReceives: points * 4,
+    winnerReceives: points * 2,
     perSeat,
-    explanation: `Win off a discard at ${win.faan} faan (classical payout). The discarder pays ${points * 2}, the other two pay ${points} each.`,
+    explanation: `Win off a discard at ${win.faan} faan (${points} points). The discarder alone pays double, ${points * 2}.`,
   }
 }
 
 export const HK_PAYMENT_SOURCING: Sourced = {
   confidence: 'varies',
   sources: [
-    HK_RULE_SHEET,
-    'https://mahjong.wikidot.com/rules:hong-kong-old-style-scoring',
+    HK_RULE_SHEET_NEW_STYLE,
+    HK_RULE_SHEET_CLASSICAL,
     'https://partypotapp.com/blog/mahjong-scoring-beginners-guide/',
   ],
   note:
-    'The supplied rule sheet uses "New Style" (出銃包三家): on a discard the discarder alone pays, at double the points. Two other conventions are also in use — the discarder alone paying face value, and the classical version where the discarder pays double and the other two pay face value as well. Self-draw is the same everywhere: all three opponents pay face value.',
+    'New Style (出銃包三家): only the discarder pays, at double the points; on a self-draw all three pay face value. Classical: everyone pays every hand, and the payments double when they fed the winning tile, when the win was a self-draw, when the dealer wins, and for the dealer when the dealer loses — all stacking. A third convention, where the discarder alone pays face value, appears in some online guides but is on neither supplied sheet.',
 }
 
 // ---------------------------------------------------------------------------
