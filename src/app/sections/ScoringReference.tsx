@@ -51,6 +51,13 @@ export function ScoringReferenceSection() {
 
   const showChinese = terminology.language !== 'en'
 
+  /**
+   * Which language the stored romanizations are in. Hong Kong hand names are
+   * read in Cantonese, Taiwanese ones in Mandarin — one reading per hand, not
+   * one per language.
+   */
+  const romanizationLanguage = ruleset === 'hongKong' ? 'cantonese' : 'mandarin'
+
   /** Resolve a `replaces` id to the parent hand's name for display. */
   const replacedName = (id: string) =>
     scoring.patterns.find((pattern) => pattern.id === id)?.name ?? id
@@ -121,11 +128,27 @@ export function ScoringReferenceSection() {
                           <Group gap={8} align="baseline">
                             <Text fw={600}>{pattern.name}</Text>
                             {showChinese && pattern.chinese && (
-                              <Text size="sm" c="jade.3">
-                                {terminology.script === 'characters'
-                                  ? pattern.chinese
-                                  : (pattern.romanized ?? pattern.chinese)}
-                              </Text>
+                              <Group gap={4} align="baseline" wrap="nowrap">
+                                <Text size="sm" c="jade.3">
+                                  {terminology.script === 'characters'
+                                    ? pattern.chinese
+                                    : (pattern.romanized ?? pattern.chinese)}
+                                </Text>
+                                {/*
+                                  Hand names are read in the ruleset's own
+                                  language — Cantonese for Hong Kong, Mandarin
+                                  for Taiwanese — and we only hold that one
+                                  reading per hand. Rather than pass a Cantonese
+                                  spelling off as Mandarin, say which it is.
+                                */}
+                                {terminology.script === 'romanized' &&
+                                  pattern.romanized &&
+                                  romanizationLanguage !== terminology.language && (
+                                    <Text size="10px" c="dimmed">
+                                      {romanizationLanguage === 'cantonese' ? 'Cant.' : 'Mand.'}
+                                    </Text>
+                                  )}
+                              </Group>
                             )}
                           </Group>
                           <Text size="xs" c="dimmed" lh={1.45}>

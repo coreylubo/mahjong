@@ -62,7 +62,7 @@ export interface RecordWinInput {
 export type ScorekeeperAction =
   | { type: 'renamePlayer'; seat: number; name: string }
   | { type: 'recordWin'; input: RecordWinInput; id: string }
-  | { type: 'recordDraw'; id: string }
+  | { type: 'recordDraw'; id: string; ruleset: Ruleset }
   | { type: 'undo' }
   | { type: 'reset' }
 
@@ -126,7 +126,7 @@ export function scorekeeperReducer(
           ...state.hands,
           {
             id: action.id,
-            ruleset: 'hongKong',
+            ruleset: action.ruleset,
             winnerSeat: null,
             score: 0,
             deltas: { 0: 0, 1: 0, 2: 0, 3: 0 },

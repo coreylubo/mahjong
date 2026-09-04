@@ -28,6 +28,7 @@ import {
   totals,
   standings,
   SCORING_BY_RULESET,
+  type RecordWinInput,
 } from './index'
 
 // ---------------------------------------------------------------------------
@@ -420,6 +421,51 @@ describe('scoring tables', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Bad input — every one of these was a real defect found in review
+// ---------------------------------------------------------------------------
+
+describe('payout survives input the UI can produce', () => {
+  it('floors a fractional faan instead of indexing the table with it', () => {
+    // table[3.5] is undefined, which turned every downstream total into NaN.
+    expect(faanToPoints(3.5)).toBe(faanToPoints(3))
+    expect(Number.isFinite(faanToPoints(3.5))).toBe(true)
+    expect(Number.isFinite(hongKongPayout({ faan: 3.5, winnerSeat: 0 }).winnerReceives)).toBe(true)
+  })
+
+  it('floors a fractional tai', () => {
+    expect(taiToAmount(2.9)).toBe(taiToAmount(2))
+  })
+
+  it('never returns NaN or undefined for any plausible score input', () => {
+    for (const faan of [-5, -0.5, 0, 0.5, 3.5, 13, 99, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(Number.isFinite(faanToPoints(faan)), `faan ${faan}`).toBe(true)
+      expect(Number.isFinite(taiToAmount(faan)), `tai ${faan}`).toBe(true)
+    }
+  })
+
+  it('treats a winner listed as their own discarder as a self-draw', () => {
+    // Reachable by picking a discarder then changing the winner to that seat.
+    // Left unhandled, the winner was credited AND not debited, inventing money.
+    for (const style of ['newStyle', 'classical'] as const) {
+      const payout = hongKongPayout({
+        faan: 4,
+        winnerSeat: 1,
+        discarderSeat: 1,
+        dealerSeat: 0,
+        rules: { minimumFaan: 0, limitFaan: 13, paymentStyle: style },
+      })
+      expect(payout.perSeat[1], style).toBe(0)
+      const collected = Object.values(payout.perSeat).reduce((a, b) => a + b, 0)
+      expect(payout.winnerReceives, style).toBe(collected)
+    }
+
+    const tw = taiwanesePayout({ tai: 4, winnerSeat: 2, discarderSeat: 2 })
+    expect(tw.perSeat[2]).toBe(0)
+    expect(tw.winnerReceives).toBe(Object.values(tw.perSeat).reduce((a, b) => a + b, 0))
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Scorekeeper
 // ---------------------------------------------------------------------------
 
@@ -475,13 +521,13 @@ describe('scorekeeper', () => {
   })
 
   it('records a washout with nobody paying', () => {
-    const state = scorekeeperReducer(createScorekeeper(), { type: 'recordDraw', id: 'h1' })
+    const state = scorekeeperReducer(createScorekeeper(), { type: 'recordDraw', id: 'h1', ruleset: 'hongKong' })
     expect(totals(state)).toEqual({ 0: 0, 1: 0, 2: 0, 3: 0 })
     expect(state.hands[0]!.winnerSeat).toBeNull()
   })
 
   it('renames a seat without touching the hand log', () => {
-    let state = scorekeeperReducer(createScorekeeper(), { type: 'recordDraw', id: 'h1' })
+    let state = scorekeeperReducer(createScorekeeper(), { type: 'recordDraw', id: 'h1', ruleset: 'hongKong' })
     state = scorekeeperReducer(state, { type: 'renamePlayer', seat: 2, name: 'Sam' })
     expect(state.players[2]!.name).toBe('Sam')
     expect(state.hands).toHaveLength(1)
@@ -499,8 +545,36 @@ describe('scorekeeper', () => {
     expect(ranked[0]!.total).toBe(39)
   })
 
+  it('keeps every hand balanced, whatever it is handed', () => {
+    // A scorekeeper that invents or destroys points is worse than none.
+    let state = createScorekeeper()
+    const cases: RecordWinInput[] = [
+      { ruleset: 'hongKong', winnerSeat: 0, discarderSeat: 0, score: 4 },
+      { ruleset: 'hongKong', winnerSeat: 2, discarderSeat: 1, score: 3.5 },
+      { ruleset: 'hongKong', winnerSeat: 1, score: 99 },
+      { ruleset: 'taiwanese', winnerSeat: 3, discarderSeat: 3, score: 5 },
+      { ruleset: 'taiwanese', winnerSeat: 0, score: -2 },
+    ]
+    cases.forEach((input, index) => {
+      state = scorekeeperReducer(state, { type: 'recordWin', id: `h${index}`, input })
+      const running = totals(state)
+      const sum = Object.values(running).reduce((a, b) => a + b, 0)
+      expect(sum, `after hand ${index}`).toBe(0)
+      for (const value of Object.values(running)) expect(Number.isFinite(value)).toBe(true)
+    })
+  })
+
+  it('records a washout under the ruleset that was actually being played', () => {
+    const state = scorekeeperReducer(createScorekeeper(), {
+      type: 'recordDraw',
+      id: 'h1',
+      ruleset: 'taiwanese',
+    })
+    expect(state.hands[0]!.ruleset).toBe('taiwanese')
+  })
+
   it('resets the hand log but keeps the players', () => {
-    let state = scorekeeperReducer(createScorekeeper(['A', 'B', 'C', 'D']), { type: 'recordDraw', id: 'h1' })
+    let state = scorekeeperReducer(createScorekeeper(['A', 'B', 'C', 'D']), { type: 'recordDraw', id: 'h1', ruleset: 'hongKong' })
     state = scorekeeperReducer(state, { type: 'reset' })
     expect(state.hands).toHaveLength(0)
     expect(state.players[0]!.name).toBe('A')

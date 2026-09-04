@@ -80,7 +80,14 @@ export function ScorekeeperSection() {
               <SegmentedControl
                 fullWidth
                 value={String(winnerSeat)}
-                onChange={(value) => setWinnerSeat(Number(value))}
+                onChange={(value) => {
+                  const seat = Number(value)
+                  setWinnerSeat(seat)
+                  // The new winner disappears from the "Won on" options, so a
+                  // stale selection would silently record them as their own
+                  // discarder. Fall back to a self-draw.
+                  if (discarderSeat === seat) setDiscarderSeat('self')
+                }}
                 data={seatOptions}
               />
             </Stack>
@@ -124,6 +131,9 @@ export function ScorekeeperSection() {
             <NumberInput
               label={`${unit} scored`}
               size="md"
+              allowDecimal={false}
+              allowNegative={false}
+              step={1}
               min={0}
               max={ruleset === 'hongKong' ? 13 : 64}
               value={score}
@@ -135,7 +145,7 @@ export function ScorekeeperSection() {
               <Button
                 variant="light"
                 color="gray"
-                onClick={() => dispatch({ type: 'recordDraw', id: `${Date.now()}` })}
+                onClick={() => dispatch({ type: 'recordDraw', id: `${Date.now()}`, ruleset })}
               >
                 Washout
               </Button>

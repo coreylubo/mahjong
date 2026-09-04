@@ -87,11 +87,30 @@ export function hkPointsTable(style: PaymentStyle): readonly number[] {
   return style === 'classical' ? HK_POINTS_TABLE_CLASSICAL : HK_POINTS_TABLE_NEW_STYLE
 }
 
-/** Look up the base points a hand is worth, capping at the table's limit. */
+/**
+ * Look up the base points a hand is worth, capping at the table's limit.
+ *
+ * Faan are always whole numbers, but the value arrives from a UI input, so a
+ * fractional or non-finite value is floored rather than used as an array index
+ * — indexing with 3.5 would return undefined and turn every downstream total
+ * into NaN.
+ */
 export function faanToPoints(faan: number, rules: HongKongTableRules = DEFAULT_HK_RULES): number {
   const table = hkPointsTable(rules.paymentStyle)
-  const capped = Math.min(Math.max(faan, 0), rules.limitFaan, table.length - 1)
+  const whole = Number.isFinite(faan) ? Math.floor(faan) : 0
+  const capped = Math.min(Math.max(whole, 0), Math.floor(rules.limitFaan), table.length - 1)
   return table[capped]!
+}
+
+/**
+ * A player cannot deal into their own hand. If a caller passes a discarder
+ * equal to the winner — reachable from the UI by changing the winner after
+ * picking a discarder — the only coherent reading is a self-draw. Normalising
+ * here keeps the per-seat amounts summing to what the winner collects, which
+ * the scorekeeper relies on to stay balanced.
+ */
+function normaliseDiscarder(winnerSeat: number, discarderSeat?: number): number | undefined {
+  return discarderSeat === winnerSeat ? undefined : discarderSeat
 }
 
 export const FAAN_CONVERSION_SOURCING: Sourced = {
@@ -159,7 +178,8 @@ export function classicalDoublings(
   return doublings
 }
 
-function classicalPayout(win: HongKongWin, rules: HongKongTableRules): PayoutBreakdown {
+function classicalPayout(input: HongKongWin, rules: HongKongTableRules): PayoutBreakdown {
+  const win = { ...input, discarderSeat: normaliseDiscarder(input.winnerSeat, input.discarderSeat) }
   const points = faanToPoints(win.faan, rules)
   const perSeat: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 }
 
@@ -182,10 +202,11 @@ function classicalPayout(win: HongKongWin, rules: HongKongTableRules): PayoutBre
   }
 }
 
-export function hongKongPayout(win: HongKongWin): PayoutBreakdown {
-  const rules = win.rules ?? DEFAULT_HK_RULES
-  if (rules.paymentStyle === 'classical') return classicalPayout(win, rules)
+export function hongKongPayout(input: HongKongWin): PayoutBreakdown {
+  const rules = input.rules ?? DEFAULT_HK_RULES
+  if (rules.paymentStyle === 'classical') return classicalPayout(input, rules)
 
+  const win = { ...input, discarderSeat: normaliseDiscarder(input.winnerSeat, input.discarderSeat) }
   const points = faanToPoints(win.faan, rules)
   const perSeat: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 }
 
@@ -247,7 +268,9 @@ export const DEFAULT_TW_RULES: TaiwaneseTableRules = {
  * 5-tai hand costs each payer 3 + 2×5 = 13.
  */
 export function taiToAmount(tai: number, rules: TaiwaneseTableRules = DEFAULT_TW_RULES): number {
-  return rules.base + rules.perTai * tai
+  // Tai are whole numbers; guard against a fractional or non-finite UI value.
+  const whole = Number.isFinite(tai) ? Math.max(Math.floor(tai), 0) : 0
+  return rules.base + rules.perTai * whole
 }
 
 export interface TaiwaneseWin {
@@ -257,8 +280,9 @@ export interface TaiwaneseWin {
   rules?: TaiwaneseTableRules
 }
 
-export function taiwanesePayout(win: TaiwaneseWin): PayoutBreakdown {
-  const rules = win.rules ?? DEFAULT_TW_RULES
+export function taiwanesePayout(input: TaiwaneseWin): PayoutBreakdown {
+  const rules = input.rules ?? DEFAULT_TW_RULES
+  const win = { ...input, discarderSeat: normaliseDiscarder(input.winnerSeat, input.discarderSeat) }
   const amount = taiToAmount(win.tai, rules)
   const perSeat: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0 }
 
