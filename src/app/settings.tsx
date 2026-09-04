@@ -1,16 +1,24 @@
 /**
- * App-wide settings: ruleset and terminology (spec §5).
+ * App-wide state: ruleset, terminology, and where the table has got to (spec §5).
  *
- * This is the one place the UI layer is allowed to hold game-related state.
- * It stores *choices*, not rules — the rules themselves all live in src/core.
+ * This is the one place the UI layer is allowed to hold game-related state. It
+ * stores *choices* and *position* — never rules, which all live in src/core and
+ * reach this file only as pure functions like `advanceRound`.
+ *
+ * The round moved here when the tracker became a floating control rather than a
+ * card inside one section. It is read from the tracker and, in principle, from
+ * anywhere else that cares whose deal it is, so it cannot live in a section's
+ * local state any more.
  */
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 
 import {
   DEFAULT_TERMINOLOGY,
+  INITIAL_ROUND,
   term as resolveTerm,
   termWithEnglish as resolveTermWithEnglish,
   type PaymentStyle,
+  type RoundState,
   type Ruleset,
   type TerminologySetting,
 } from '../core'
@@ -26,6 +34,18 @@ interface SettingsValue {
    */
   hkPaymentStyle: PaymentStyle
   setHkPaymentStyle: (style: PaymentStyle) => void
+  /** Where the table has got to: round wind, whose deal, which hand. */
+  round: RoundState
+  setRound: (round: RoundState) => void
+  /**
+   * Which seat the person holding the phone is sitting in (0-3).
+   *
+   * Seats are fixed for the whole game; it is the WIND labels that rotate as
+   * the deal passes. So this is set once and the tracker derives your wind from
+   * it and the current dealer.
+   */
+  mySeat: number
+  setMySeat: (seat: number) => void
   /** Resolve a term key for the current setting. */
   t: (key: string) => string
   /** Resolve a term key, appending the English name when it differs. */
@@ -38,6 +58,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [ruleset, setRuleset] = useState<Ruleset>('hongKong')
   const [terminology, setTerminology] = useState<TerminologySetting>(DEFAULT_TERMINOLOGY)
   const [hkPaymentStyle, setHkPaymentStyle] = useState<PaymentStyle>('newStyle')
+  const [round, setRound] = useState<RoundState>(INITIAL_ROUND)
+  const [mySeat, setMySeat] = useState(0)
 
   const value = useMemo<SettingsValue>(
     () => ({
@@ -47,10 +69,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setTerminology,
       hkPaymentStyle,
       setHkPaymentStyle,
+      round,
+      setRound,
+      mySeat,
+      setMySeat,
       t: (key: string) => resolveTerm(key, terminology),
       tEn: (key: string) => resolveTermWithEnglish(key, terminology),
     }),
-    [ruleset, terminology, hkPaymentStyle],
+    [ruleset, terminology, hkPaymentStyle, round, mySeat],
   )
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>

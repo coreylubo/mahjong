@@ -1,7 +1,10 @@
 /**
  * The shell (spec §2).
  *
- * There is no header and no nav rail any more. Ruleset and terminology are set
+ * There is no header and no nav rail any more. Two floating controls sit over
+ * the content instead: the round tracker upper left, the section menu lower
+ * left — both needed from every screen, neither worth permanent furniture.
+ * Ruleset and terminology are set
  * once before a game and live behind the floating nav; the sections are one tap
  * away in that same place. What is left is content, edge to edge — in landscape
  * on a phone that is the whole point, since the reference tables are why anyone
@@ -13,6 +16,7 @@
  */
 import { useState } from 'react'
 
+import { RoundTracker } from './components/RoundTracker'
 import { SectionNav } from './components/SectionNav'
 import { SECTIONS, type SectionId } from './navigation'
 
@@ -26,6 +30,7 @@ export function App() {
         <Active />
       </main>
 
+      <RoundTracker />
       <SectionNav active={active} onNavigate={setActive} />
     </>
   )

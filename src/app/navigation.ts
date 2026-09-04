@@ -6,7 +6,7 @@
  * make them import each other.
  */
 import { SetupSection } from './sections/Setup'
-import { TurnFlowSection } from './sections/TurnFlow'
+import { TurnsSection } from './sections/Turns'
 import { TileReferenceSection } from './sections/TileReference'
 import { MeldsActionsSection } from './sections/MeldsActions'
 import { ScoringReferenceSection } from './sections/ScoringReference'
@@ -14,7 +14,7 @@ import { ScorekeeperSection } from './sections/Scorekeeper'
 
 export const SECTIONS = [
   { id: 'setup', label: 'Setup', hint: 'Before the first tile', Component: SetupSection },
-  { id: 'turn', label: 'Turn Flow', hint: 'Whose go, and what happens', Component: TurnFlowSection },
+  { id: 'turn', label: 'Turns', hint: 'Yours, and everyone else\u2019s', Component: TurnsSection },
   { id: 'tiles', label: 'Tiles', hint: 'What am I holding?', Component: TileReferenceSection },
   { id: 'melds', label: 'Melds', hint: 'Can I claim that?', Component: MeldsActionsSection },
   { id: 'scoring', label: 'Scoring', hint: 'What is it worth?', Component: ScoringReferenceSection },

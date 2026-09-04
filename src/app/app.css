@@ -46,10 +46,11 @@ body {
     calc(var(--mantine-spacing-sm) + var(--safe-bottom))
     calc(var(--mantine-spacing-sm) + var(--safe-left));
   /*
-   * The floating nav sits over the lower left, so content needs room to clear
-   * it rather than ending underneath it. 56px button + its offset + breathing
-   * room.
+   * Both floating controls sit over the content, so it needs room to clear
+   * them rather than starting or ending underneath. The tracker is upper left,
+   * the section menu lower left.
    */
+  padding-top: calc(64px + var(--safe-top));
   padding-bottom: calc(88px + var(--safe-bottom));
 }
 
@@ -67,6 +68,77 @@ body {
   bottom: calc(var(--mantine-spacing-md) + var(--safe-bottom));
   z-index: 200;
   box-shadow: 0 6px 18px rgb(0 0 0 / 45%);
+}
+
+/*
+ * The floating round tracker — upper left. Whose deal it is and what wind you
+ * are is needed from every screen, so it travels with the viewport.
+ */
+.round-fab {
+  position: fixed;
+  top: calc(var(--mantine-spacing-md) + var(--safe-top));
+  left: calc(var(--mantine-spacing-md) + var(--safe-left));
+  z-index: 200;
+  padding: 6px 12px;
+  border-radius: var(--mantine-radius-xl);
+  background: var(--mantine-color-dark-6);
+  border: 1px solid var(--mantine-color-dark-4);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 45%);
+}
+
+.round-fab-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--mantine-color-dark-4);
+}
+
+/*
+ * The table, drawn from your chair: you at the bottom, the player who goes next
+ * on your right. A named-area grid rather than absolute positioning, so each
+ * seat keeps its place whatever the labels grow to.
+ */
+.table-diagram {
+  display: grid;
+  grid-template-areas:
+    ". across ."
+    "left centre right"
+    ". me .";
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.table-seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 56px;
+  padding: 6px 4px;
+  text-align: center;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-dark-6);
+  border: 1px solid transparent;
+}
+
+.table-seat[data-me] {
+  border-color: var(--mantine-color-jade-6);
+  background: var(--mantine-color-dark-5);
+}
+
+.table-seat[data-dealer] {
+  background: var(--mantine-color-jade-9);
+}
+
+.table-centre {
+  grid-area: centre;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--mantine-radius-sm);
+  border: 1px dashed var(--mantine-color-dark-4);
+  padding: 4px;
 }
 
 /* Horizontal strips of tiles scroll inside themselves rather than the page. */

@@ -172,8 +172,17 @@ In the app, tap **Why?** next to any rule to see its sources.
 
 ## What's in V1
 
-Setup · Turn Flow · Tile Reference · Melds & Actions · Scoring Reference ·
+Setup · Turns · Tile Reference · Melds & Actions · Scoring Reference ·
 Scorekeeper, reached from a floating menu in the lower left.
+
+A second floating control, upper left, tracks the round: it shows the round
+wind and your own wind at rest, and opens a diagram of the table drawn from
+your chair — you at the bottom, the next player on your right, the dealer
+marked. It floats because whose deal it is changes what a hand scores, so it is
+needed from the scoring table as much as from the turn order.
+
+**Turns** splits into your turn and everyone else's, because at any moment only
+one of them applies to you.
 
 Ruleset and terminology sit behind **Table settings** in that same menu. They
 are decisions a table makes once before the first hand, so they do not earn
