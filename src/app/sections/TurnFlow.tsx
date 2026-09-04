@@ -1,6 +1,8 @@
 /**
- * Turn Flow (spec §4.1): whose turn it is, which way play runs, how the wall
- * gets broken, and live round/seat wind trackers.
+ * Turn Flow (spec §4.1): whose turn it is, which way play runs, and live
+ * round/seat wind trackers.
+ *
+ * Setting up — seats, wall, dice, dealing — lives in the Setup section.
  *
  * The trackers are the part used mid-game, so they sit at the top and take one
  * tap to advance. The procedural content sits underneath for when someone
@@ -26,8 +28,6 @@ import {
   OFF_TURN_ACTIONS,
   ROUND_SOURCING,
   TURN_SEQUENCE,
-  WALL_SEQUENCE,
-  WALL_SOURCING,
   advanceRound,
   seatWindForPlayer,
   type RoundState,
@@ -184,7 +184,7 @@ export function TurnFlowSection() {
       </Grid>
 
       <Grid gap="md">
-        <Grid.Col span={{ base: 12, sm: 6 }}>
+        <Grid.Col span={12}>
           <Card withBorder radius="md" bg="dark.7" p="md" h="100%">
             <Stack gap="sm">
               <Title order={5}>While you wait for your turn</Title>
@@ -202,31 +202,6 @@ export function TurnFlowSection() {
           </Card>
         </Grid.Col>
 
-        <Grid.Col span={{ base: 12, sm: 6 }}>
-          <Card withBorder radius="md" bg="dark.7" p="md" h="100%">
-            <Stack gap="sm">
-              <Title order={5}>Building and breaking the wall</Title>
-              {WALL_SEQUENCE.map((step, index) => (
-                <Paper key={step.id} p="sm" radius="sm" bg="dark.6">
-                  <Group gap="sm" align="flex-start" wrap="nowrap">
-                    <Badge circle variant="light" size="lg">
-                      {index + 1}
-                    </Badge>
-                    <Stack gap={2}>
-                      <Text size="sm" fw={600}>
-                        {step.title}
-                      </Text>
-                      <Text size="sm" c="dimmed" lh={1.4}>
-                        {step.detail}
-                      </Text>
-                    </Stack>
-                  </Group>
-                </Paper>
-              ))}
-              <SourceNote sourcing={WALL_SOURCING} />
-            </Stack>
-          </Card>
-        </Grid.Col>
       </Grid>
     </Stack>
   )

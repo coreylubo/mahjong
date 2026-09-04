@@ -28,6 +28,12 @@ import {
   totals,
   standings,
   SCORING_BY_RULESET,
+  DEAL_SHAPE,
+  DEAL_SHAPE_SOURCING,
+  SEATING_SEQUENCE,
+  WALL_SEQUENCE,
+  expectedTileCount,
+  describeDeal,
   type RecordWinInput,
 } from './index'
 
@@ -599,5 +605,84 @@ describe('scorekeeper', () => {
     state = scorekeeperReducer(state, { type: 'reset' })
     expect(state.hands).toHaveLength(0)
     expect(state.players[0]!.name).toBe('A')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Setup — seats, wall, deal
+// ---------------------------------------------------------------------------
+
+describe('setup', () => {
+  const ALL_STEPS = [...SEATING_SEQUENCE, ...WALL_SEQUENCE]
+
+  it('gives every setup step a stable id and a source', () => {
+    const ids = ALL_STEPS.map((step) => step.id)
+    expect(new Set(ids).size, 'setup step ids must be unique').toBe(ids.length)
+    for (const step of ALL_STEPS) {
+      expect(step.sourcing.sources.length, `${step.id} needs a source`).toBeGreaterThan(0)
+      expect(step.title.length, `${step.id} needs a title`).toBeGreaterThan(0)
+      expect(step.detail.length, `${step.id} needs detail`).toBeGreaterThan(0)
+    }
+  })
+
+  it('holds setup content to the same sourcing rules as scoring', () => {
+    for (const step of [...ALL_STEPS]) {
+      if (step.sourcing.confidence !== 'established') {
+        expect(step.sourcing.note, `${step.id} needs a note`).toBeTruthy()
+      } else {
+        expect(
+          new Set(step.sourcing.sources).size,
+          `${step.id} is established on fewer than two distinct sources`,
+        ).toBeGreaterThanOrEqual(2)
+      }
+    }
+    expect(DEAL_SHAPE_SOURCING.sources.length).toBeGreaterThan(0)
+  })
+
+  it('builds a wall that accounts for every tile', () => {
+    // 4 players x 18 stacks x 2 tiles = 144. If this drifts, the Setup screen
+    // is telling someone to build a wall that cannot hold the set.
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const shape = DEAL_SHAPE[ruleset]
+      expect(shape.stacksPerWall * 2 * 4, `${ruleset} wall must hold the full set`).toBe(
+        TOTAL_TILES,
+      )
+    }
+  })
+
+  it('deals hands that add up', () => {
+    // Rounds of four, then one single each, must reach the stated hand size,
+    // and the dealer must start exactly one tile ahead.
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const shape = DEAL_SHAPE[ruleset]
+      const dealt = shape.roundsOfFour * 4 + (shape.takesFinalSingle ? 1 : 0)
+      expect(dealt, `${ruleset} deal must reach the hand size`).toBe(shape.handSize)
+      expect(shape.dealerHandSize, `${ruleset} dealer starts one ahead`).toBe(
+        shape.handSize + 1,
+      )
+    }
+    expect(DEAL_SHAPE.hongKong.handSize).toBe(13)
+    expect(DEAL_SHAPE.taiwanese.handSize).toBe(16)
+    // The structural difference the sources are explicit about: Hong Kong
+    // finishes with a single tile each, Taiwanese does not.
+    expect(DEAL_SHAPE.hongKong.takesFinalSingle).toBe(true)
+    expect(DEAL_SHAPE.taiwanese.takesFinalSingle).toBe(false)
+    expect(describeDeal('hongKong')).toBe('3 × 4, then 1 each')
+    expect(describeDeal('taiwanese')).toBe('4 × 4')
+  })
+
+  it('reports the tile count a player should be holding', () => {
+    expect(expectedTileCount('hongKong', false)).toBe(13)
+    expect(expectedTileCount('hongKong', true)).toBe(14)
+    expect(expectedTileCount('taiwanese', false)).toBe(16)
+    expect(expectedTileCount('taiwanese', true)).toBe(17)
+  })
+
+  it('keeps the dead wall inside the wall it is taken from', () => {
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const shape = DEAL_SHAPE[ruleset]
+      expect(shape.deadWallStacks).toBeGreaterThan(0)
+      expect(shape.deadWallStacks).toBeLessThan(shape.stacksPerWall * 4)
+    }
   })
 })

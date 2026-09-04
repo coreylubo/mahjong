@@ -62,7 +62,7 @@ src/
     ├── App.tsx            The shell and navigation
     ├── settings.tsx       Ruleset and terminology choices
     ├── components/        Tile faces, source disclosure
-    └── sections/          The five screens
+    └── sections/          The six screens
 ```
 
 **Why the split matters.** Everything in `src/core` is plain data and pure
@@ -172,8 +172,15 @@ In the app, tap **Why?** next to any rule to see its sources.
 
 ## What's in V1
 
-Turn Flow · Tile Reference · Melds & Actions · Scoring Reference · Scorekeeper,
-with ruleset and terminology toggles throughout.
+Setup · Turn Flow · Tile Reference · Melds & Actions · Scoring Reference ·
+Scorekeeper, with ruleset and terminology toggles throughout.
+
+**Setup** covers everything before the first discard, split by how often you
+actually do it: settling seats and the first dealer happens once per game,
+while rebuilding the wall, rolling, breaking and dealing happens every hand.
+Beginners routinely conflate the two. It also surfaces the numbers that differ
+between rulesets — Hong Kong deals 3 × 4 tiles and then a single each to reach
+13, Taiwanese deals 4 × 4 to reach 16 with no single round at all.
 
 Scorekeeper state is held in memory only — refreshing the page clears it. That
 is a deliberate V1 tradeoff.

@@ -14,6 +14,7 @@ import {
 
 import type { Ruleset, TermLanguage, TermScript } from '../core'
 import { RULESET_LABELS, useSettings } from './settings'
+import { SetupSection } from './sections/Setup'
 import { TurnFlowSection } from './sections/TurnFlow'
 import { TileReferenceSection } from './sections/TileReference'
 import { MeldsActionsSection } from './sections/MeldsActions'
@@ -21,6 +22,7 @@ import { ScoringReferenceSection } from './sections/ScoringReference'
 import { ScorekeeperSection } from './sections/Scorekeeper'
 
 const SECTIONS = [
+  { id: 'setup', label: 'Setup', hint: 'Before the first tile', Component: SetupSection },
   { id: 'turn', label: 'Turn Flow', hint: 'Whose go, and what happens', Component: TurnFlowSection },
   { id: 'tiles', label: 'Tiles', hint: 'What am I holding?', Component: TileReferenceSection },
   { id: 'melds', label: 'Melds', hint: 'Can I claim that?', Component: MeldsActionsSection },

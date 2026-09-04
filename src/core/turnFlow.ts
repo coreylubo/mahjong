@@ -1,5 +1,9 @@
 /**
- * Turn flow: seating, dealing, the wall, and the wind trackers (spec §4.1).
+ * Turn flow: the turn loop and the wind trackers (spec §4.1).
+ *
+ * Seating, wall building and dealing live in `setup.ts` — they are a different
+ * activity with a different audience moment, and keeping them here made the
+ * turn loop harder to find mid-hand.
  *
  * Sources consulted:
  * - https://www.coololdgames.com/tile-games/mahjong/hong-kong/
@@ -80,55 +84,6 @@ export const OFF_TURN_ACTIONS: readonly TurnStep[] = [
     detail: 'Only from the player immediately to your left, and only if nobody wants it for a win, pung or kong.',
   },
 ]
-
-export interface WallStep {
-  id: string
-  title: string
-  detail: string
-}
-
-/**
- * Building and breaking the wall. Dice conventions are one of the most
- * variable parts of the game — this is the common Hong Kong procedure and is
- * flagged as such in the UI.
- */
-export const WALL_SEQUENCE: readonly WallStep[] = [
-  {
-    id: 'build',
-    title: 'Build four walls',
-    detail: 'Each player stacks their tiles two high in front of them, then pushes the wall forward into a square.',
-  },
-  {
-    id: 'roll',
-    title: 'Dealer rolls the dice',
-    detail: 'Count that many players counter-clockwise, starting with the dealer as 1. That player\'s wall gets broken.',
-  },
-  {
-    id: 'count',
-    title: 'Count in from the right end',
-    detail: 'On the chosen wall, count the same number of stacks in from the right-hand end. Break the wall there.',
-  },
-  {
-    id: 'deal',
-    title: 'Deal from the break, moving right',
-    detail: 'Deal four tiles at a time to each player, three times around (12 tiles each), then one more each. The dealer takes one extra to start.',
-  },
-  {
-    id: 'backfill',
-    title: 'Replacements come from the other end',
-    detail: 'Flower and kong replacement tiles are drawn from the BACK of the wall — the tail end, not the live end.',
-  },
-]
-
-export const WALL_SOURCING: Sourced = {
-  confidence: 'varies',
-  sources: [
-    'https://www.coololdgames.com/tile-games/mahjong/hong-kong/',
-    'https://mahjongbritishrules.wordpress.com/the-game/playing-the-game/',
-  ],
-  note:
-    'Dice count conventions differ: some tables roll twice, some count stacks from the left, some deal the dealer\'s 14th tile by jumping ahead. The break point does not affect fairness — pick one and be consistent.',
-}
 
 // ---------------------------------------------------------------------------
 // Round and seat wind tracker
