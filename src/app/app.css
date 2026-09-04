@@ -48,12 +48,6 @@ body {
  * App.tsx so its layout maths still lines up, and the padding below keeps each
  * region's CONTENT clear of the cutout.
  */
-.app-header {
-  padding-top: var(--safe-top);
-  padding-left: calc(var(--mantine-spacing-md) + var(--safe-left));
-  padding-right: calc(var(--mantine-spacing-md) + var(--safe-right));
-}
-
 /*
  * These regions take NO Mantine `p`/`px` prop. Those props emit an inline
  * style, and no stylesheet rule can override an inline style, so the inset
@@ -67,6 +61,14 @@ body {
 }
 
 .app-main {
+  /*
+   * There is no header any more — ruleset and terminology moved behind the
+   * gear in the rail, since a table sets them once and never touches them
+   * again. That reclaimed 48px of vertical, which landscape on a phone badly
+   * needs. It also means Main no longer inherits a top offset from the header,
+   * so it carries the top inset itself.
+   */
+  padding-top: calc(var(--mantine-spacing-sm) + var(--safe-top));
   padding-right: calc(var(--mantine-spacing-sm) + var(--safe-right));
   /*
    * Bottom inset plus room for the home indicator and for Safari's chrome as it
@@ -78,6 +80,15 @@ body {
 /* Large tap targets — the device may be flat on the table (spec §2). */
 .section-tab {
   min-height: 52px;
+  border-radius: var(--mantine-radius-md);
+}
+
+/* The gear sits at the foot of the rail, away from the section list. */
+.settings-tab {
+  margin-top: auto;
+  border-top: 1px solid var(--mantine-color-dark-4);
+  border-radius: 0;
+  padding-top: var(--mantine-spacing-sm);
 }
 
 /* Horizontal strips of tiles scroll inside themselves rather than the page. */
