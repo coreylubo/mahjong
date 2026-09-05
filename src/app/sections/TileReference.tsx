@@ -120,9 +120,10 @@ function SuitRun({ suit }: { suit: Suit }) {
       <Stack gap="sm">
         <GroupHeading naming={naming} copies="1–9, four of each." />
 
+        {/* No caption: the rank is printed on the tile now, in the corner. */}
         <Group gap={8} align="flex-start" className="no-page-scroll-x">
           {tiles.map((tile) => (
-            <LabelledTile key={tile.id} tile={tile} label={String(tile.rank)} />
+            <TileFace key={tile.id} tile={tile} size={50} />
           ))}
         </Group>
 
@@ -171,7 +172,7 @@ function TileGroup({
         <GroupHeading naming={naming} copies={copies} />
         <Group gap={8} align="flex-start" className="no-page-scroll-x">
           {tiles.map((tile) => (
-            <LabelledTile key={tile.id} tile={tile} label={tile.englishName} wide />
+            <LabelledTile key={tile.id} tile={tile} label={tile.englishName} />
           ))}
         </Group>
         <Text size="sm" c="dimmed" lh={1.45}>
@@ -217,11 +218,16 @@ function GroupHeading({ naming, copies }: { naming: GroupNaming; copies: string 
   )
 }
 
-function LabelledTile({ tile, label, wide }: { tile: Tile; label: string; wide?: boolean }) {
+/**
+ * Honour tiles keep a caption, because their English name is not printed on
+ * them and is the thing a beginner is looking up. Suits do not — their rank is
+ * on the tile face.
+ */
+function LabelledTile({ tile, label }: { tile: Tile; label: string }) {
   return (
-    <Stack gap={3} align="center" style={{ width: wide ? 72 : 52 }}>
-      <TileFace tile={tile} size={wide ? 50 : 48} />
-      <Text size="10px" c="dimmed" ta="center" lh={1.2}>
+    <Stack gap={3} align="center" style={{ width: 72 }}>
+      <TileFace tile={tile} size={50} />
+      <Text size="xs" c="gray.4" ta="center" lh={1.2}>
         {label}
       </Text>
     </Stack>

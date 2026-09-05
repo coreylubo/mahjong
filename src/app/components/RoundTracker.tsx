@@ -21,11 +21,13 @@
  * passes to the right.
  */
 import { useState } from 'react'
+import { useMediaQuery } from '@mantine/hooks'
 import {
   Badge,
   Box,
   Button,
   Group,
+  Flex,
   Popover,
   ScrollArea,
   Stack,
@@ -40,14 +42,21 @@ import {
   advanceRound,
   seatWindForPlayer,
 } from '../../core'
-import { RULESET_LABELS, useSettings } from '../settings'
+import { MY_SEAT, RULESET_LABELS, useSettings } from '../settings'
 import { SourceNote } from './SourceNote'
 
-const WIND_CHAR: Record<string, string> = {
+export const WIND_CHAR: Record<string, string> = {
   east: '東',
   south: '南',
   west: '西',
   north: '北',
+}
+
+export const WIND_LETTER: Record<string, string> = {
+  east: 'E',
+  south: 'S',
+  west: 'W',
+  north: 'N',
 }
 
 /**
@@ -65,10 +74,12 @@ const RELATIVE_SLOTS = [
 
 export function RoundTracker() {
   const [open, setOpen] = useState(false)
-  const { ruleset, t, round, setRound, mySeat, setMySeat } = useSettings()
+  const { ruleset, t, round, setRound, playerNames } = useSettings()
+  // Portrait is tall and narrow, so the two columns become two rows.
+  const portrait = useMediaQuery('(orientation: portrait)')
 
-  const myWind = seatWindForPlayer(mySeat, round.dealerSeat)
-  const iAmDealer = mySeat === round.dealerSeat
+  const myWind = seatWindForPlayer(MY_SEAT, round.dealerSeat)
+  const iAmDealer = MY_SEAT === round.dealerSeat
 
   return (
     <Popover
@@ -76,7 +87,9 @@ export function RoundTracker() {
       onChange={setOpen}
       position="bottom-start"
       offset={12}
-      width={476}
+      // Portrait phones are narrower than the landscape two-column width, so
+      // the dropdown tracks the viewport rather than overflowing it.
+      width={portrait ? 'calc(100vw - 28px)' : 476}
       radius="md"
       shadow="xl"
       withinPortal
@@ -89,9 +102,17 @@ export function RoundTracker() {
         >
           <Group gap={10} wrap="nowrap" align="center">
             <Stack gap={0} align="center">
-              <Text fz={20} fw={700} lh={1}>
-                {WIND_CHAR[round.roundWind]}
-              </Text>
+              {/* Character and letter together: one is what the tile shows, the
+                  other is what an English speaker reads. Neither alone serves
+                  both. */}
+              <Group gap={4} align="baseline">
+                <Text fz={19} fw={700} lh={1}>
+                  {WIND_CHAR[round.roundWind]}
+                </Text>
+                <Text fz={13} fw={700} lh={1} c="gray.4">
+                  {WIND_LETTER[round.roundWind]}
+                </Text>
+              </Group>
               <Text fz={8} c="dimmed" tt="uppercase" fw={700} lh={1.4}>
                 Round
               </Text>
@@ -100,9 +121,14 @@ export function RoundTracker() {
             <Box className="round-fab-divider" />
 
             <Stack gap={0} align="center">
-              <Text fz={20} fw={700} lh={1} c="jade.4">
-                {WIND_CHAR[myWind]}
-              </Text>
+              <Group gap={4} align="baseline">
+                <Text fz={19} fw={700} lh={1} c="jade.4">
+                  {WIND_CHAR[myWind]}
+                </Text>
+                <Text fz={13} fw={700} lh={1} c="jade.5">
+                  {WIND_LETTER[myWind]}
+                </Text>
+              </Group>
               <Text fz={8} c="dimmed" tt="uppercase" fw={700} lh={1.4}>
                 You
               </Text>
@@ -119,15 +145,16 @@ export function RoundTracker() {
           below a scroll. Width is the axis this orientation actually has.
         */}
         <ScrollArea.Autosize mah="min(74vh, 440px)" type="auto">
-          <Group align="flex-start" gap="sm" wrap="nowrap">
-            <Stack gap={6} style={{ width: 168, flexShrink: 0 }}>
-              <TableDiagram
-                dealerSeat={round.dealerSeat}
-                mySeat={mySeat}
-                onPickSeat={setMySeat}
-              />
+          <Flex
+            direction={portrait ? 'column' : 'row'}
+            align={portrait ? 'stretch' : 'flex-start'}
+            gap="sm"
+            wrap="nowrap"
+          >
+            <Stack gap={6} style={{ width: portrait ? '100%' : 168, flexShrink: 0 }}>
+              <TableDiagram dealerSeat={round.dealerSeat} playerNames={playerNames} />
               <Text fz={9} c="dimmed" lh={1.35} ta="center">
-                Tap a seat to say where you sit. Play passes to your right.
+                Play passes to your right. Name the table in Setup.
               </Text>
             </Stack>
 
@@ -203,7 +230,7 @@ export function RoundTracker() {
 
             <SourceNote sourcing={ROUND_SOURCING} />
             </Stack>
-          </Group>
+          </Flex>
         </ScrollArea.Autosize>
       </Popover.Dropdown>
     </Popover>
@@ -215,45 +242,53 @@ export function RoundTracker() {
  * the winds on them rotate as the deal passes, which is exactly what this is
  * for.
  */
-function TableDiagram({
+export function TableDiagram({
   dealerSeat,
-  mySeat,
-  onPickSeat,
+  playerNames,
 }: {
   dealerSeat: number
-  mySeat: number
-  onPickSeat: (seat: number) => void
+  playerNames: readonly string[]
 }) {
   return (
     <Box className="table-diagram">
       {RELATIVE_SLOTS.map(({ offset, area, label }) => {
-        const seat = (mySeat + offset) % 4
+        const seat = (MY_SEAT + offset) % 4
         const wind = seatWindForPlayer(seat, dealerSeat)
         const isDealer = seat === dealerSeat
         const isMe = offset === 0
 
         return (
-          <UnstyledButton
+          <Box
             key={area}
             className="table-seat"
             style={{ gridArea: area }}
             data-dealer={isDealer || undefined}
             data-me={isMe || undefined}
-            onClick={() => onPickSeat(seat)}
-            aria-label={`${label}: seat ${seat + 1}, ${wind}${isDealer ? ', dealer' : ''}`}
+            aria-label={`${label}: ${playerNames[seat]}, ${wind}${isDealer ? ', dealer' : ''}`}
           >
-            <Text fz={19} fw={700} lh={1.1} c={isMe ? 'jade.3' : undefined}>
-              {WIND_CHAR[wind]}
+            <Group gap={4} align="baseline" justify="center">
+              <Text fz={18} fw={700} lh={1.1} c={isMe ? 'jade.3' : undefined}>
+                {WIND_CHAR[wind]}
+              </Text>
+              <Text fz={12} fw={700} lh={1.1} c={isMe ? 'jade.5' : 'gray.5'}>
+                {WIND_LETTER[wind]}
+              </Text>
+            </Group>
+            <Text fz={10} fw={600} lh={1.2} c={isMe ? 'jade.3' : 'gray.3'}>
+              {playerNames[seat]}
             </Text>
-            <Text fz={9} c="dimmed" lh={1.2}>
-              {label}
-            </Text>
+            {/* The position line is dropped when the name already says it. */}
+            {playerNames[seat] !== label && (
+              <Text fz={8} c="dimmed" lh={1.2}>
+                {label}
+              </Text>
+            )}
             {isDealer && (
               <Text fz={8} fw={700} c="yellow.4" lh={1.2} tt="uppercase">
                 Dealer
               </Text>
             )}
-          </UnstyledButton>
+          </Box>
         )
       })}
 

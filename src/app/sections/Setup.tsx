@@ -16,12 +16,14 @@
  */
 import {
   Badge,
+  Button,
   Card,
   Grid,
   Group,
   Paper,
   Stack,
   Text,
+  TextInput,
   Title,
 } from '@mantine/core'
 
@@ -30,11 +32,13 @@ import {
   DEAL_SHAPE_SOURCING,
   SEATING_SEQUENCE,
   describeDeal,
+  seatWindForPlayer,
   WALL_SEQUENCE,
   type SetupStep,
 } from '../../core'
-import { RULESET_LABELS, useSettings } from '../settings'
+import { MY_SEAT, RULESET_LABELS, useSettings } from '../settings'
 import { SourceNote } from '../components/SourceNote'
+import { WIND_LETTER } from '../components/RoundTracker'
 
 export function SetupSection() {
   const { ruleset, groupWord } = useSettings()
@@ -71,6 +75,8 @@ export function SetupSection() {
           <SourceNote sourcing={DEAL_SHAPE_SOURCING} />
         </Stack>
       </Card>
+
+      <TableSeating />
 
       <Grid gap="md">
         <Grid.Col span={{ base: 12, md: 7 }}>
@@ -113,6 +119,110 @@ export function SetupSection() {
         </Grid.Col>
       </Grid>
     </Stack>
+  )
+}
+
+/**
+ * Who is at the table, and who deals first.
+ *
+ * You are always drawn at the bottom, so nobody has to work out which side of
+ * a compass diagram they are on. The three other chairs are named by where they
+ * sit relative to you, which is how anyone actually refers to them mid-hand
+ * ("pass it to your right"), and the seats never move for the whole game — the
+ * wind labels are what rotate as the deal passes.
+ */
+function TableSeating() {
+  const { playerNames, setPlayerName, round, setRound, t } = useSettings()
+
+  const seats = [
+    { seat: 0, label: 'You', hint: 'bottom of the table' },
+    { seat: 1, label: 'Your right', hint: 'plays after you' },
+    { seat: 2, label: 'Across', hint: 'opposite you' },
+    { seat: 3, label: 'Your left', hint: 'plays before you' },
+  ]
+
+  return (
+    <Card withBorder radius="md" bg="dark.7" p="md">
+      <Stack gap="sm">
+        <Group justify="space-between" align="center" wrap="nowrap">
+          <Title order={5}>Who is playing</Title>
+          <Badge variant="light" color="gray" radius="sm">
+            One time
+          </Badge>
+        </Group>
+        <Text size="xs" c="dimmed" lh={1.4}>
+          Name the table once. Seats never move for the whole game — it is the wind
+          labels that rotate as the deal passes.
+        </Text>
+
+        <Grid gap="xs">
+          {seats.map(({ seat, label, hint }) => {
+            const isDealer = seat === round.dealerSeat
+            return (
+              <Grid.Col key={seat} span={{ base: 12, sm: 6, md: 3 }}>
+                <Paper
+                  p="xs"
+                  radius="sm"
+                  bg={seat === MY_SEAT ? 'dark.5' : 'dark.6'}
+                  h="100%"
+                  style={
+                    seat === MY_SEAT
+                      ? { border: '1px solid var(--mantine-color-jade-6)' }
+                      : undefined
+                  }
+                >
+                  <Stack gap={6}>
+                    <Group justify="space-between" gap={4} wrap="nowrap">
+                      <Text size="10px" c="dimmed" tt="uppercase" fw={700} lh={1.3}>
+                        {label}
+                      </Text>
+                      <Text size="10px" c="jade.4" fw={700} lh={1.3}>
+                        {WIND_LETTER[seatWindForPlayer(seat, round.dealerSeat)]}
+                        {isDealer ? ` · ${t('dealer')}` : ''}
+                      </Text>
+                    </Group>
+                    <TextInput
+                      size="xs"
+                      value={playerNames[seat]}
+                      onChange={(event) => setPlayerName(seat, event.currentTarget.value)}
+                      aria-label={`Name of the player ${label.toLowerCase()}`}
+                    />
+                    <Text size="10px" c="dimmed" lh={1.3}>
+                      {hint}
+                    </Text>
+                  </Stack>
+                </Paper>
+              </Grid.Col>
+            )
+          })}
+        </Grid>
+
+        <Stack gap={6}>
+          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+            Who starts as East?
+          </Text>
+          <Group gap={6} wrap="wrap">
+            {seats.map(({ seat, label }) => (
+              <Button
+                key={seat}
+                size="xs"
+                variant={seat === round.dealerSeat ? 'filled' : 'light'}
+                color={seat === round.dealerSeat ? 'jade' : 'gray'}
+                onClick={() =>
+                  setRound({ ...round, dealerSeat: seat, dealerStreak: 0, handNumber: 1 })
+                }
+              >
+                {playerNames[seat] || label}
+              </Button>
+            ))}
+          </Group>
+          <Text size="10px" c="dimmed" lh={1.4}>
+            East deals the first hand and holds the deal while they keep winning. Setting
+            this restarts the count at hand 1.
+          </Text>
+        </Stack>
+      </Stack>
+    </Card>
   )
 }
 

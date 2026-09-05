@@ -15,6 +15,28 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 /** What to call a group of matched tiles. See `groupTerm` below. */
 export type GroupTerm = 'melds' | 'sets'
 
+/**
+ * You are always seat 0, and always drawn at the bottom of the table.
+ *
+ * Every player reads a table from their own chair, so fixing this removes both
+ * a setting and the mental rotation that came with it.
+ */
+export const MY_SEAT = 0
+
+/**
+ * Seat 1 is to your right, which is where play goes next.
+ *
+ * The defaults are deliberately not "Right"/"Across"/"Left": every seat is
+ * already labelled with its position, so naming them that too would say the
+ * same thing twice and read as a bug once real names are typed in.
+ */
+export const DEFAULT_PLAYER_NAMES: readonly string[] = [
+  'You',
+  'Player 2',
+  'Player 3',
+  'Player 4',
+]
+
 import {
   DEFAULT_TERMINOLOGY,
   INITIAL_ROUND,
@@ -41,14 +63,15 @@ interface SettingsValue {
   round: RoundState
   setRound: (round: RoundState) => void
   /**
-   * Which seat the person holding the phone is sitting in (0-3).
+   * Who is sitting where, by seat index.
    *
-   * Seats are fixed for the whole game; it is the WIND labels that rotate as
-   * the deal passes. So this is set once and the tracker derives your wind from
-   * it and the current dealer.
+   * Seat 0 is ALWAYS you — every diagram draws the table from your chair, so
+   * there is no "which seat am I" to set and no mental rotation to do. The
+   * other three are named by where they sit relative to you, and seats never
+   * move: it is the WIND labels that rotate as the deal passes.
    */
-  mySeat: number
-  setMySeat: (seat: number) => void
+  playerNames: readonly string[]
+  setPlayerName: (seat: number, name: string) => void
   /**
    * Whether a group of matched tiles is called a "meld" or a "set".
    *
@@ -74,7 +97,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [terminology, setTerminology] = useState<TerminologySetting>(DEFAULT_TERMINOLOGY)
   const [hkPaymentStyle, setHkPaymentStyle] = useState<PaymentStyle>('newStyle')
   const [round, setRound] = useState<RoundState>(INITIAL_ROUND)
-  const [mySeat, setMySeat] = useState(0)
+  const [playerNames, setPlayerNames] = useState<readonly string[]>(DEFAULT_PLAYER_NAMES)
   const [groupTerm, setGroupTerm] = useState<GroupTerm>('melds')
 
   const value = useMemo<SettingsValue>(
@@ -87,8 +110,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setHkPaymentStyle,
       round,
       setRound,
-      mySeat,
-      setMySeat,
+      playerNames,
+      setPlayerName: (seat: number, name: string) =>
+        setPlayerNames((current) => current.map((existing, i) => (i === seat ? name : existing))),
       groupTerm,
       setGroupTerm,
       groupWord: (plural = false) =>
@@ -96,7 +120,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       t: (key: string) => resolveTerm(key, terminology),
       tEn: (key: string) => resolveTermWithEnglish(key, terminology),
     }),
-    [ruleset, terminology, hkPaymentStyle, round, mySeat, groupTerm],
+    [ruleset, terminology, hkPaymentStyle, round, playerNames, groupTerm],
   )
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>

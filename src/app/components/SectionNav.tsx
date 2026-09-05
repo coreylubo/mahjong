@@ -65,14 +65,9 @@ export function SectionNav({
               onClick={() => onNavigate(section.id)}
               bg={active === section.id ? 'var(--mantine-color-jade-light)' : undefined}
             >
-              <Stack gap={0}>
-                <Text size="sm" fw={600} c={active === section.id ? 'jade.3' : undefined}>
-                  {section.label}
-                </Text>
-                <Text size="10px" c="dimmed" lh={1.25}>
-                  {section.hint}
-                </Text>
-              </Stack>
+              <Text size="sm" fw={600} c={active === section.id ? 'jade.3' : undefined}>
+                {section.label}
+              </Text>
             </Menu.Item>
           ))}
 

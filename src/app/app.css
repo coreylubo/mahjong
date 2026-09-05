@@ -41,6 +41,19 @@ body {
  * than inheriting any.
  */
 .app-main {
+  /*
+   * A SCROLL RUNWAY, so mobile Safari can collapse its chrome.
+   *
+   * Safari only hides the address bar when the document scrolls, and a section
+   * whose content is shorter than the viewport gives it nothing to scroll —
+   * so the bars stay up on exactly the short pages where the space is most
+   * missed. Guaranteeing the document outruns the viewport by a little keeps
+   * the behaviour consistent across sections.
+   *
+   * `dvh` rather than `vh`: `vh` is the bar-collapsed height, so using it here
+   * would size the runway against a viewport the user cannot see yet.
+   */
+  min-height: calc(100dvh + 140px);
   padding: calc(var(--mantine-spacing-sm) + var(--safe-top))
     calc(var(--mantine-spacing-sm) + var(--safe-right))
     calc(var(--mantine-spacing-sm) + var(--safe-bottom))
@@ -108,6 +121,16 @@ body {
   align-items: stretch;
 }
 
+/*
+ * Scores are read while looking at the people they belong to, so the running
+ * totals use the same table layout as the round tracker rather than a row of
+ * cards. These seats hold more, so they are taller.
+ */
+.table-seat--score {
+  min-height: 88px;
+  gap: 2px;
+}
+
 .table-seat {
   display: flex;
   flex-direction: column;
@@ -139,6 +162,16 @@ body {
   border-radius: var(--mantine-radius-sm);
   border: 1px dashed var(--mantine-color-dark-4);
   padding: 4px;
+}
+
+/*
+ * Never lock the page with `position: fixed` on body. It collapses the
+ * document's scroll height, which makes Safari put its chrome straight back —
+ * the scroll lock and the fullscreen are lost in the same line.
+ */
+html,
+body {
+  overscroll-behavior: none;
 }
 
 /* Horizontal strips of tiles scroll inside themselves rather than the page. */

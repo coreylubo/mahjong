@@ -259,6 +259,30 @@ function Bird() {
   )
 }
 
+/**
+ * The rank mark real sets print in the top-left corner.
+ *
+ * Western-numbered sets carry it in red, which is exactly the affordance a
+ * beginner needs — it is the only thing on a Dots or Bamboo tile you can read
+ * without counting, and on a Characters or Wind tile it is the only thing you
+ * can read at all without knowing the script.
+ */
+function CornerMark({ text }: { text: string }) {
+  return (
+    <text
+      x={8}
+      y={13}
+      textAnchor="start"
+      fontSize={13}
+      fontWeight={700}
+      fill={RED}
+      style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif' }}
+    >
+      {text}
+    </text>
+  )
+}
+
 function Glyph({ text, fill, size, y }: { text: string; fill: string; size: number; y: number }) {
   return (
     <text
@@ -276,39 +300,53 @@ function Glyph({ text, fill, size, y }: { text: string; fill: string; size: numb
   )
 }
 
+/**
+ * Pip art sits in its own group nudged down the face, so the corner mark has
+ * clear space rather than colliding with the top row of a 9.
+ */
+function Pips({ children }: { children: React.ReactNode }) {
+  return <g transform="translate(0 5)">{children}</g>
+}
+
 function FaceContent({ tile }: { tile: Tile }) {
   if (tile.kind === 'suit' && tile.rank) {
     if (tile.suit === 'dots') {
-      if (tile.rank === 1) return <SingleDot />
       return (
         <>
-          {dotPips(tile.rank).map((pip, i) => (
-            <Dot key={i} {...pip} />
-          ))}
+          <CornerMark text={String(tile.rank)} />
+          <Pips>{tile.rank === 1 ? <SingleDot /> : dotPips(tile.rank).map((pip, i) => <Dot key={i} {...pip} />)}</Pips>
         </>
       )
     }
     if (tile.suit === 'bamboo') {
-      if (tile.rank === 1) return <Bird />
       return (
         <>
-          {bambooCanes(tile.rank).map((cane, i) => (
-            <Cane key={i} {...cane} />
-          ))}
+          <CornerMark text={String(tile.rank)} />
+          <Pips>
+            {tile.rank === 1 ? <Bird /> : bambooCanes(tile.rank).map((cane, i) => <Cane key={i} {...cane} />)}
+          </Pips>
         </>
       )
     }
     return (
       <>
-        <Glyph text={CHINESE_NUMERALS[tile.rank - 1]!} fill={INK} size={27} y={30} />
-        <Glyph text="萬" fill={RED} size={25} y={61} />
+        <CornerMark text={String(tile.rank)} />
+        <Glyph text={CHINESE_NUMERALS[tile.rank - 1]!} fill={INK} size={25} y={34} />
+        <Glyph text="萬" fill={RED} size={23} y={63} />
       </>
     )
   }
 
   if (tile.kind === 'wind') {
     const chars = { east: '東', south: '南', west: '西', north: '北' } as const
-    return <Glyph text={chars[tile.wind!]} fill={INK} size={38} y={44} />
+    const letters = { east: 'E', south: 'S', west: 'W', north: 'N' } as const
+    return (
+      <>
+        {/* Many sets print no letter at all, so this is the tile made readable. */}
+        <CornerMark text={letters[tile.wind!]} />
+        <Glyph text={chars[tile.wind!]} fill={INK} size={36} y={48} />
+      </>
+    )
   }
 
   if (tile.kind === 'dragon') {
@@ -344,7 +382,7 @@ function FaceContent({ tile }: { tile: Tile }) {
           <circle cx={40} cy={22} r={5} fill="#e6a817" />
         </g>
       )}
-      <Glyph text={String(tile.rank)} fill={BLUE} size={17} y={68} />
+      <CornerMark text={String(tile.rank)} />
     </>
   )
 }
