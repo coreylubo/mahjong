@@ -209,7 +209,16 @@ function TableSeating() {
                 variant={seat === round.dealerSeat ? 'filled' : 'light'}
                 color={seat === round.dealerSeat ? 'jade' : 'gray'}
                 onClick={() =>
-                  setRound({ ...round, dealerSeat: seat, dealerStreak: 0, handNumber: 1 })
+                  setRound({
+                    ...round,
+                    dealerSeat: seat,
+                    // The round wraps back to whoever starts it, so this has to
+                    // move with the dealer or the East round ends early.
+                    roundStartSeat: seat,
+                    roundWind: 'east',
+                    dealerStreak: 0,
+                    handNumber: 1,
+                  })
                 }
               >
                 {playerNames[seat] || label}

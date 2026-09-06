@@ -98,6 +98,17 @@ export interface RoundState {
   dealerStreak: number
   /** Hands completed in this round so far. */
   handNumber: number
+  /**
+   * The seat that dealt the first hand of the current round.
+   *
+   * The round wind advances when the deal comes back around to this seat — NOT
+   * when it reaches seat 0. Those are the same thing only when the game happens
+   * to start with seat 0 dealing; start anywhere else and hardcoding 0 ends the
+   * round early (starting at seat 2, the East round would end after seats 2 and
+   * 3 had dealt), which puts every later round wind wrong and mis-scores every
+   * hand that counts one.
+   */
+  roundStartSeat: number
 }
 
 export const INITIAL_ROUND: RoundState = {
@@ -105,6 +116,7 @@ export const INITIAL_ROUND: RoundState = {
   dealerSeat: 0,
   dealerStreak: 0,
   handNumber: 1,
+  roundStartSeat: 0,
 }
 
 /** Seat wind for a given seat, relative to who is currently dealing. */
@@ -151,15 +163,19 @@ export function advanceRound(
   }
 
   const nextDealer = nextSeat(state.dealerSeat)
-  // The round wind advances when the deal returns to the seat that started
-  // the round — i.e. when the deal passes all the way around the table.
-  const roundAdvances = nextDealer === 0
+  // The round wind advances when the deal returns to the seat that started the
+  // round — the deal has then passed all the way around the table. Comparing
+  // against seat 0 instead would end the round early whenever the game started
+  // anywhere but seat 0.
+  const roundStartSeat = state.roundStartSeat ?? 0
+  const roundAdvances = nextDealer === roundStartSeat
   const roundIndex = WIND_ORDER.indexOf(state.roundWind)
   return {
     roundWind: roundAdvances ? WIND_ORDER[(roundIndex + 1) % 4]! : state.roundWind,
     dealerSeat: nextDealer,
     dealerStreak: 0,
     handNumber: state.handNumber + 1,
+    roundStartSeat,
   }
 }
 

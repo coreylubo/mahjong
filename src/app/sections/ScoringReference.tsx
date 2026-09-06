@@ -21,6 +21,7 @@ import {
   TW_PAYMENT_SOURCING,
   faanToPoints,
   taiToAmount,
+  replacedIds,
   type PatternCategory,
 } from '../../core'
 import { PAYMENT_STYLE_LABELS, RULESET_LABELS, useSettings } from '../settings'
@@ -154,9 +155,11 @@ export function ScoringReferenceSection() {
                           <Text size="xs" c="dimmed" lh={1.45}>
                             {pattern.description}
                           </Text>
-                          {pattern.replaces && (
+                          {replacedIds(pattern).length > 0 && (
                             <Text size="xs" c="yellow.5" lh={1.45}>
-                              Replaces {replacedName(pattern.replaces)} — count this instead, not both.
+                              Replaces{' '}
+                              {replacedIds(pattern).map(replacedName).join(' and ')} — count
+                              this instead, not both.
                             </Text>
                           )}
                           {pattern.beginnerNote && (

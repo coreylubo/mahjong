@@ -88,7 +88,9 @@ const PATTERNS: ScoringPattern[] = [
     romanized: 'mén qīng zì mō',
     value: 3,
     category: 'hand',
-    replaces: 'tw-concealed',
+    // Packages BOTH, which is the whole point of the 3 — naming only the
+    // concealed half would leave self-draw countable on top for 4.
+    replaces: ['tw-concealed', 'tw-self-draw'],
     description: 'A fully concealed hand won on your own draw. Worth 3 tai as a package.',
     beginnerNote: 'Do not also count Self-draw and Concealed hand — this 3 tai replaces both. The LA sheet calls it 一摸三, "one draw, three".',
     sourcing: { confidence: 'established', sources: [WIKIDOT, LAMJ, CRIB] },
@@ -331,6 +333,7 @@ const PATTERNS: ScoringPattern[] = [
     romanized: 'xiǎo sān yuán',
     value: 4,
     category: 'hand',
+    replaces: 'tw-dragon-pung',
     description: 'Pungs of two dragons, plus a pair of the third.',
     sourcing: {
       confidence: 'established',
@@ -377,12 +380,16 @@ const PATTERNS: ScoringPattern[] = [
     romanized: 'dà sān yuán',
     value: 8,
     category: 'hand',
-    replaces: 'tw-little-dragons',
+    // NOT Little Three Dragons: that hand needs the third dragon as the pair,
+    // this one as a pung, so they can never both apply and naming it would
+    // suppress nothing. The three repeatable dragon-pung bonuses are the real
+    // double-count — 8 + 3 = 11 without this.
+    replaces: 'tw-dragon-pung',
     description: 'Pungs or kongs of all three dragons.',
     sourcing: {
       confidence: 'established',
       sources: [WIKIDOT, LAMJ],
-      note: 'Replaces Little Three Dragons and the individual dragon pungs rather than adding to them.',
+      note: 'The three dragon pungs are absorbed into this 8 tai — do not also count them individually.',
     },
   },
   {
@@ -392,6 +399,7 @@ const PATTERNS: ScoringPattern[] = [
     romanized: 'xiǎo sì xǐ',
     value: 8,
     category: 'hand',
+    replaces: ['tw-seat-wind', 'tw-round-wind'],
     description: 'Pungs of three winds, plus a pair of the fourth.',
     sourcing: {
       confidence: 'established',
@@ -437,12 +445,14 @@ const PATTERNS: ScoringPattern[] = [
     romanized: 'dà sì xǐ',
     value: 16,
     category: 'limit',
-    replaces: 'tw-little-winds',
+    // Same reasoning as Great Three Dragons: Little Four Winds needs the fourth
+    // wind as the pair, so the two can never both apply.
+    replaces: ['tw-seat-wind', 'tw-round-wind'],
     description: 'Pungs or kongs of all four winds.',
     sourcing: {
       confidence: 'established',
       sources: [WIKIDOT, LAMJ, MJ888],
-      note: 'All three sources agree at 16 tai, including the LA house scale. Replaces Little Four Winds rather than adding to it.',
+      note: 'All three sources agree at 16 tai, including the LA house scale. The wind pungs are absorbed into it — do not also count them individually.',
     },
   },
   {

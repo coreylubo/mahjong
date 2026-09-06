@@ -36,6 +36,7 @@ import {
   SEATING_SEQUENCE,
   WALL_SEQUENCE,
   expectedTileCount,
+  replacedIds,
   describeDeal,
   type RecordWinInput,
 } from './index'
@@ -179,6 +180,33 @@ describe('round tracker', () => {
     }
     expect(state.dealerSeat).toBe(0)
     expect(state.roundWind).toBe('south')
+  })
+
+  it('ends the round on the seat that started it, not on seat 0', () => {
+    // Found in review. Starting the game with seat 2 dealing, the East round
+    // must last four deals — 2, 3, 0, 1 — and only then become South. Comparing
+    // against seat 0 instead ended it after two, which puts every later round
+    // wind wrong and mis-scores every hand counting one.
+    let state = { ...INITIAL_ROUND, dealerSeat: 2, roundStartSeat: 2 }
+    const passDeal = () =>
+      advanceRound(state, { type: 'win', winnerSeat: (state.dealerSeat + 1) % 4 })
+
+    state = passDeal()
+    expect(state.dealerSeat).toBe(3)
+    expect(state.roundWind, 'still East after one deal').toBe('east')
+
+    state = passDeal()
+    expect(state.dealerSeat).toBe(0)
+    expect(state.roundWind, 'seat 0 is not the boundary here').toBe('east')
+
+    state = passDeal()
+    expect(state.dealerSeat).toBe(1)
+    expect(state.roundWind).toBe('east')
+
+    state = passDeal()
+    expect(state.dealerSeat).toBe(2)
+    expect(state.roundWind, 'back to the starting seat — South now').toBe('south')
+    expect(state.roundStartSeat, 'the boundary is carried forward').toBe(2)
   })
 
   it('honours the house rule for a washout', () => {
@@ -413,9 +441,9 @@ describe('scoring tables', () => {
       const patterns = SCORING_BY_RULESET[ruleset].patterns
       const ids = new Set(patterns.map((p) => p.id))
       for (const pattern of patterns) {
-        if (pattern.replaces) {
-          expect(ids.has(pattern.replaces), `${pattern.id} replaces missing ${pattern.replaces}`).toBe(true)
-          expect(pattern.replaces).not.toBe(pattern.id)
+        for (const replaced of replacedIds(pattern)) {
+          expect(ids.has(replaced), `${pattern.id} replaces missing ${replaced}`).toBe(true)
+          expect(replaced).not.toBe(pattern.id)
         }
       }
     }
@@ -427,10 +455,35 @@ describe('scoring tables', () => {
     for (const ruleset of ['hongKong', 'taiwanese'] as const) {
       const patterns = SCORING_BY_RULESET[ruleset].patterns
       for (const pattern of patterns) {
-        if (!pattern.replaces) continue
-        const parent = patterns.find((p) => p.id === pattern.replaces)!
-        expect(pattern.value, `${pattern.id} vs ${parent.id}`).toBeGreaterThan(parent.value)
+        for (const replaced of replacedIds(pattern)) {
+          const parent = patterns.find((p) => p.id === replaced)!
+          expect(pattern.value, `${pattern.id} vs ${parent.id}`).toBeGreaterThan(parent.value)
+        }
       }
+    }
+  })
+
+  it('names every pattern a hand absorbs, not just the first', () => {
+    // Found in review: a hand that packages two bonuses but names only one
+    // leaves the other countable on top. Concealed Self-Draw is 3 tai for the
+    // pair of them, so both have to be listed or a caller adds self-draw again
+    // and reaches 4.
+    const tw = SCORING_BY_RULESET.taiwanese.patterns
+    const byId = (id: string) => tw.find((p) => p.id === id)!
+    expect(replacedIds(byId('tw-concealed-self-draw'))).toEqual([
+      'tw-concealed',
+      'tw-self-draw',
+    ])
+
+    // Great Three Dragons cannot co-occur with Little Three Dragons — that hand
+    // needs the third dragon as its pair — so the repeatable dragon-pung bonus
+    // is what it actually has to suppress.
+    expect(replacedIds(byId('tw-great-dragons'))).toContain('tw-dragon-pung')
+    expect(replacedIds(byId('tw-little-dragons'))).toContain('tw-dragon-pung')
+
+    // Same shape for the winds, which come from two separate patterns.
+    for (const id of ['tw-little-winds', 'tw-great-winds']) {
+      expect(replacedIds(byId(id))).toEqual(['tw-seat-wind', 'tw-round-wind'])
     }
   })
 
