@@ -34,15 +34,27 @@ export interface ScoringPattern {
   /** True when the pattern can be counted more than once in one hand (e.g. per dragon pung). */
   repeatable?: boolean
   /**
-   * Id of the pattern this one supersedes.
+   * Id, or ids, of the pattern(s) this one supersedes.
    *
    * The supplied Hong Kong rule sheet lists some hands indented under others,
    * with the rule "indented features replace the parent feature" — a Full Flush
    * replaces a Mixed Flush rather than adding to it. Scoring is otherwise a
    * straight sum, so without this the app would double-count.
+   *
+   * Some hands absorb MORE than one pattern: Concealed Self-Draw packages both
+   * Concealed Hand and Self-draw into its 3 tai, and Great Three Dragons
+   * absorbs all three repeatable dragon-pung bonuses. Naming only one of them
+   * leaves the rest countable, which is the double-count this field exists to
+   * prevent — so it takes a list as readily as a single id.
    */
-  replaces?: string
+  replaces?: string | readonly string[]
   sourcing: Sourced
+}
+
+/** Normalises `replaces` so callers never have to handle both shapes. */
+export function replacedIds(pattern: ScoringPattern): readonly string[] {
+  if (!pattern.replaces) return []
+  return typeof pattern.replaces === 'string' ? [pattern.replaces] : pattern.replaces
 }
 
 export interface RulesetScoring {

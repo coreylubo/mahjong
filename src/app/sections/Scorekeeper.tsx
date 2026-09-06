@@ -13,12 +13,11 @@ import {
   Grid,
   Group,
   NumberInput,
-  Paper,
+  Box,
   SegmentedControl,
   Stack,
   Table,
   Text,
-  TextInput,
   Title,
 } from '@mantine/core'
 
@@ -28,11 +27,21 @@ import {
   scorekeeperReducer,
   standings,
   totals,
+  seatWindForPlayer,
 } from '../../core'
-import { useSettings } from '../settings'
+import { MY_SEAT, useSettings } from '../settings'
+import { WIND_CHAR, WIND_LETTER } from '../components/RoundTracker'
+
+/** Same relative layout as the round tracker's diagram: you at the bottom. */
+const SEAT_SLOTS = [
+  { offset: 0, area: 'me', label: 'You' },
+  { offset: 1, area: 'right', label: 'Your right' },
+  { offset: 2, area: 'across', label: 'Across' },
+  { offset: 3, area: 'left', label: 'Your left' },
+] as const
 
 export function ScorekeeperSection() {
-  const { ruleset, t, hkPaymentStyle } = useSettings()
+  const { ruleset, t, hkPaymentStyle, playerNames, round } = useSettings()
   const [state, dispatch] = useReducer(scorekeeperReducer, undefined, () => createScorekeeper())
   const [winnerSeat, setWinnerSeat] = useState(0)
   const [discarderSeat, setDiscarderSeat] = useState<number | 'self'>('self')
@@ -61,9 +70,11 @@ export function ScorekeeperSection() {
     })
   }
 
+  // Names come from the shared table state, so the winner picker says the same
+  // thing as the seating diagram and the round tracker.
   const seatOptions = state.players.map((player) => ({
     value: String(player.seat),
-    label: player.name,
+    label: playerNames[player.seat] ?? player.name,
   }))
 
   return (
@@ -189,35 +200,67 @@ export function ScorekeeperSection() {
                 </Badge>
               </Group>
 
-              <Grid gap="xs">
-                {state.players.map((player) => {
-                  const total = running[player.seat] ?? 0
-                  const leading = ranked[0]?.player.seat === player.seat && total !== 0
+              {/*
+                Laid out as the table, not as a row of cards. Scores are read
+                while looking at the people they belong to, so "across from me
+                is down 40" should not need translating from a grid position.
+                Names, seats and the dealer all come from the same table state
+                the round tracker uses.
+              */}
+              <Box className="table-diagram">
+                {SEAT_SLOTS.map(({ offset, area, label }) => {
+                  const seat = (MY_SEAT + offset) % 4
+                  const total = running[seat] ?? 0
+                  const leading = ranked[0]?.player.seat === seat && total !== 0
+                  const wind = seatWindForPlayer(seat, round.dealerSeat)
+                  const isDealer = seat === round.dealerSeat
+
                   return (
-                    <Grid.Col key={player.seat} span={{ base: 6, sm: 3 }}>
-                      <Paper p="sm" radius="sm" bg={leading ? 'jade.9' : 'dark.6'} ta="center">
-                        <TextInput
-                          size="xs"
-                          variant="unstyled"
-                          ta="center"
-                          value={player.name}
-                          onChange={(event) =>
-                            dispatch({
-                              type: 'renamePlayer',
-                              seat: player.seat,
-                              name: event.currentTarget.value,
-                            })
-                          }
-                          styles={{ input: { textAlign: 'center', fontWeight: 600 } }}
-                        />
-                        <Text fz={28} fw={700} lh={1.2} c={total > 0 ? 'jade.3' : total < 0 ? 'red.4' : undefined}>
-                          {total > 0 ? `+${total}` : total}
+                    <Box
+                      key={area}
+                      className="table-seat table-seat--score"
+                      style={{ gridArea: area }}
+                      data-dealer={isDealer || undefined}
+                      data-me={offset === 0 || undefined}
+                    >
+                      <Group gap={4} align="baseline" justify="center">
+                        <Text fz={14} fw={700} lh={1.1}>
+                          {WIND_CHAR[wind]}
                         </Text>
-                      </Paper>
-                    </Grid.Col>
+                        <Text fz={11} fw={700} lh={1.1} c="gray.5">
+                          {WIND_LETTER[wind]}
+                        </Text>
+                        {isDealer && (
+                          <Text fz={9} fw={700} c="yellow.4" tt="uppercase" lh={1.1}>
+                            {t('dealer')}
+                          </Text>
+                        )}
+                      </Group>
+                      <Text fz={12} fw={600} lh={1.25} c={offset === 0 ? 'jade.3' : 'gray.3'}>
+                        {playerNames[seat]}
+                      </Text>
+                      <Text
+                        fz={26}
+                        fw={700}
+                        lh={1.2}
+                        c={total > 0 ? 'jade.3' : total < 0 ? 'red.4' : undefined}
+                      >
+                        {total > 0 ? `+${total}` : total}
+                      </Text>
+                      <Text fz={8} c="dimmed" lh={1.2}>
+                        {playerNames[seat] === label ? '' : label}
+                        {leading ? (playerNames[seat] === label ? 'leading' : ' · leading') : ''}
+                      </Text>
+                    </Box>
                   )
                 })}
-              </Grid>
+
+                <Box className="table-centre">
+                  <Text fz={10} c="dimmed" ta="center" lh={1.3}>
+                    Hand {round.handNumber}
+                  </Text>
+                </Box>
+              </Box>
             </Stack>
           </Card>
 
@@ -234,7 +277,7 @@ export function ScorekeeperSection() {
                     <Table.Th>What happened</Table.Th>
                     {state.players.map((player) => (
                       <Table.Th key={player.seat} ta="right">
-                        {player.name}
+                        {playerNames[player.seat] ?? player.name}
                       </Table.Th>
                     ))}
                   </Table.Tr>

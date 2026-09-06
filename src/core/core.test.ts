@@ -7,6 +7,9 @@ import {
   TOTAL_TILES,
   SET_COMPOSITION,
   TILES_BY_ID,
+  CHINESE_NUMERALS,
+  SUIT_NAMING,
+  HONOUR_NAMING,
   bonusTileSeat,
   advanceRound,
   INITIAL_ROUND,
@@ -28,6 +31,13 @@ import {
   totals,
   standings,
   SCORING_BY_RULESET,
+  DEAL_SHAPE,
+  DEAL_SHAPE_SOURCING,
+  SEATING_SEQUENCE,
+  WALL_SEQUENCE,
+  expectedTileCount,
+  replacedIds,
+  describeDeal,
   type RecordWinInput,
 } from './index'
 
@@ -85,6 +95,22 @@ describe('tile data', () => {
   it('gives every tile a unique id and a recognition hint', () => {
     expect(Object.keys(TILES_BY_ID)).toHaveLength(TILES.length)
     expect(TILES.every((t) => t.recognition.length > 0)).toBe(true)
+  })
+
+  it('prints the nine Chinese numerals used on Character tiles', () => {
+    // These are drawn onto the tile faces, so a corrupted entry here ships a
+    // tile that reads as the wrong number. Worth pinning exactly.
+    expect(CHINESE_NUMERALS).toEqual(['一', '二', '三', '四', '五', '六', '七', '八', '九'])
+  })
+
+  it('names every suit and honour group in all three languages', () => {
+    for (const naming of [...Object.values(SUIT_NAMING), ...Object.values(HONOUR_NAMING)]) {
+      expect(naming.english).toBeTruthy()
+      expect(naming.traditional).toBeTruthy()
+      expect(naming.mandarin).toBeTruthy()
+      expect(naming.cantonese).toBeTruthy()
+      expect(naming.alsoCalled.length).toBeGreaterThan(0)
+    }
   })
 
   it('calls out 1 Bamboo as a bird, not a stick', () => {
@@ -154,6 +180,33 @@ describe('round tracker', () => {
     }
     expect(state.dealerSeat).toBe(0)
     expect(state.roundWind).toBe('south')
+  })
+
+  it('ends the round on the seat that started it, not on seat 0', () => {
+    // Found in review. Starting the game with seat 2 dealing, the East round
+    // must last four deals — 2, 3, 0, 1 — and only then become South. Comparing
+    // against seat 0 instead ended it after two, which puts every later round
+    // wind wrong and mis-scores every hand counting one.
+    let state = { ...INITIAL_ROUND, dealerSeat: 2, roundStartSeat: 2 }
+    const passDeal = () =>
+      advanceRound(state, { type: 'win', winnerSeat: (state.dealerSeat + 1) % 4 })
+
+    state = passDeal()
+    expect(state.dealerSeat).toBe(3)
+    expect(state.roundWind, 'still East after one deal').toBe('east')
+
+    state = passDeal()
+    expect(state.dealerSeat).toBe(0)
+    expect(state.roundWind, 'seat 0 is not the boundary here').toBe('east')
+
+    state = passDeal()
+    expect(state.dealerSeat).toBe(1)
+    expect(state.roundWind).toBe('east')
+
+    state = passDeal()
+    expect(state.dealerSeat).toBe(2)
+    expect(state.roundWind, 'back to the starting seat — South now').toBe('south')
+    expect(state.roundStartSeat, 'the boundary is carried forward').toBe(2)
   })
 
   it('honours the house rule for a washout', () => {
@@ -388,9 +441,9 @@ describe('scoring tables', () => {
       const patterns = SCORING_BY_RULESET[ruleset].patterns
       const ids = new Set(patterns.map((p) => p.id))
       for (const pattern of patterns) {
-        if (pattern.replaces) {
-          expect(ids.has(pattern.replaces), `${pattern.id} replaces missing ${pattern.replaces}`).toBe(true)
-          expect(pattern.replaces).not.toBe(pattern.id)
+        for (const replaced of replacedIds(pattern)) {
+          expect(ids.has(replaced), `${pattern.id} replaces missing ${replaced}`).toBe(true)
+          expect(replaced).not.toBe(pattern.id)
         }
       }
     }
@@ -402,10 +455,35 @@ describe('scoring tables', () => {
     for (const ruleset of ['hongKong', 'taiwanese'] as const) {
       const patterns = SCORING_BY_RULESET[ruleset].patterns
       for (const pattern of patterns) {
-        if (!pattern.replaces) continue
-        const parent = patterns.find((p) => p.id === pattern.replaces)!
-        expect(pattern.value, `${pattern.id} vs ${parent.id}`).toBeGreaterThan(parent.value)
+        for (const replaced of replacedIds(pattern)) {
+          const parent = patterns.find((p) => p.id === replaced)!
+          expect(pattern.value, `${pattern.id} vs ${parent.id}`).toBeGreaterThan(parent.value)
+        }
       }
+    }
+  })
+
+  it('names every pattern a hand absorbs, not just the first', () => {
+    // Found in review: a hand that packages two bonuses but names only one
+    // leaves the other countable on top. Concealed Self-Draw is 3 tai for the
+    // pair of them, so both have to be listed or a caller adds self-draw again
+    // and reaches 4.
+    const tw = SCORING_BY_RULESET.taiwanese.patterns
+    const byId = (id: string) => tw.find((p) => p.id === id)!
+    expect(replacedIds(byId('tw-concealed-self-draw'))).toEqual([
+      'tw-concealed',
+      'tw-self-draw',
+    ])
+
+    // Great Three Dragons cannot co-occur with Little Three Dragons — that hand
+    // needs the third dragon as its pair — so the repeatable dragon-pung bonus
+    // is what it actually has to suppress.
+    expect(replacedIds(byId('tw-great-dragons'))).toContain('tw-dragon-pung')
+    expect(replacedIds(byId('tw-little-dragons'))).toContain('tw-dragon-pung')
+
+    // Same shape for the winds, which come from two separate patterns.
+    for (const id of ['tw-little-winds', 'tw-great-winds']) {
+      expect(replacedIds(byId(id))).toEqual(['tw-seat-wind', 'tw-round-wind'])
     }
   })
 
@@ -414,6 +492,27 @@ describe('scoring tables', () => {
       for (const pattern of SCORING_BY_RULESET[ruleset].patterns) {
         if (pattern.sourcing.confidence !== 'established') {
           expect(pattern.sourcing.note, `${pattern.id} needs a note`).toBeTruthy()
+        }
+      }
+    }
+  })
+
+  it('corroborates anything marked established against two sources', () => {
+    // `established` means every source consulted agrees — which takes at least
+    // two sources to be a claim at all. A single-source value is `unverified`
+    // however confident it reads.
+    //
+    // This guards a real defect: the Taiwanese table previously marked values
+    // `established` while citing pages that turned out to use a different tai
+    // scale entirely, and marked Five Concealed Pungs against one source that
+    // does not in fact mention the hand.
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      for (const pattern of SCORING_BY_RULESET[ruleset].patterns) {
+        if (pattern.sourcing.confidence === 'established') {
+          expect(
+            new Set(pattern.sourcing.sources).size,
+            `${pattern.id} is established on fewer than two distinct sources`,
+          ).toBeGreaterThanOrEqual(2)
         }
       }
     }
@@ -578,5 +677,84 @@ describe('scorekeeper', () => {
     state = scorekeeperReducer(state, { type: 'reset' })
     expect(state.hands).toHaveLength(0)
     expect(state.players[0]!.name).toBe('A')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Setup — seats, wall, deal
+// ---------------------------------------------------------------------------
+
+describe('setup', () => {
+  const ALL_STEPS = [...SEATING_SEQUENCE, ...WALL_SEQUENCE]
+
+  it('gives every setup step a stable id and a source', () => {
+    const ids = ALL_STEPS.map((step) => step.id)
+    expect(new Set(ids).size, 'setup step ids must be unique').toBe(ids.length)
+    for (const step of ALL_STEPS) {
+      expect(step.sourcing.sources.length, `${step.id} needs a source`).toBeGreaterThan(0)
+      expect(step.title.length, `${step.id} needs a title`).toBeGreaterThan(0)
+      expect(step.detail.length, `${step.id} needs detail`).toBeGreaterThan(0)
+    }
+  })
+
+  it('holds setup content to the same sourcing rules as scoring', () => {
+    for (const step of [...ALL_STEPS]) {
+      if (step.sourcing.confidence !== 'established') {
+        expect(step.sourcing.note, `${step.id} needs a note`).toBeTruthy()
+      } else {
+        expect(
+          new Set(step.sourcing.sources).size,
+          `${step.id} is established on fewer than two distinct sources`,
+        ).toBeGreaterThanOrEqual(2)
+      }
+    }
+    expect(DEAL_SHAPE_SOURCING.sources.length).toBeGreaterThan(0)
+  })
+
+  it('builds a wall that accounts for every tile', () => {
+    // 4 players x 18 stacks x 2 tiles = 144. If this drifts, the Setup screen
+    // is telling someone to build a wall that cannot hold the set.
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const shape = DEAL_SHAPE[ruleset]
+      expect(shape.stacksPerWall * 2 * 4, `${ruleset} wall must hold the full set`).toBe(
+        TOTAL_TILES,
+      )
+    }
+  })
+
+  it('deals hands that add up', () => {
+    // Rounds of four, then one single each, must reach the stated hand size,
+    // and the dealer must start exactly one tile ahead.
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const shape = DEAL_SHAPE[ruleset]
+      const dealt = shape.roundsOfFour * 4 + (shape.takesFinalSingle ? 1 : 0)
+      expect(dealt, `${ruleset} deal must reach the hand size`).toBe(shape.handSize)
+      expect(shape.dealerHandSize, `${ruleset} dealer starts one ahead`).toBe(
+        shape.handSize + 1,
+      )
+    }
+    expect(DEAL_SHAPE.hongKong.handSize).toBe(13)
+    expect(DEAL_SHAPE.taiwanese.handSize).toBe(16)
+    // The structural difference the sources are explicit about: Hong Kong
+    // finishes with a single tile each, Taiwanese does not.
+    expect(DEAL_SHAPE.hongKong.takesFinalSingle).toBe(true)
+    expect(DEAL_SHAPE.taiwanese.takesFinalSingle).toBe(false)
+    expect(describeDeal('hongKong')).toBe('3 × 4, then 1 each')
+    expect(describeDeal('taiwanese')).toBe('4 × 4')
+  })
+
+  it('reports the tile count a player should be holding', () => {
+    expect(expectedTileCount('hongKong', false)).toBe(13)
+    expect(expectedTileCount('hongKong', true)).toBe(14)
+    expect(expectedTileCount('taiwanese', false)).toBe(16)
+    expect(expectedTileCount('taiwanese', true)).toBe(17)
+  })
+
+  it('keeps the dead wall inside the wall it is taken from', () => {
+    for (const ruleset of ['hongKong', 'taiwanese'] as const) {
+      const shape = DEAL_SHAPE[ruleset]
+      expect(shape.deadWallStacks).toBeGreaterThan(0)
+      expect(shape.deadWallStacks).toBeLessThan(shape.stacksPerWall * 4)
+    }
   })
 })

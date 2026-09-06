@@ -44,6 +44,98 @@ export const SUIT_ORDER: readonly Suit[] = ['dots', 'bamboo', 'characters'] as c
 /** Chinese numerals as printed on Character tiles — the whole point of §4.2. */
 export const CHINESE_NUMERALS: readonly string[] = ['一', '二', '三', '四', '五', '六', '七', '八', '九']
 
+/**
+ * What each group of tiles is called.
+ *
+ * A beginner's first question about a tile is usually not "which one is it" but
+ * "what is this whole family called" — and the answer differs by who you ask,
+ * in English as much as in Chinese. Dots are Circles or Wheels; Characters are
+ * Myriads or Cracks. Those alternatives are listed rather than hidden, because
+ * the person across the table will use one of them.
+ */
+export interface GroupNaming {
+  english: string
+  /** Other English names in common use. The reader will hear these. */
+  alsoCalled: readonly string[]
+  traditional: string
+  /** Only where it differs from the traditional form. */
+  simplified?: string
+  /** Mandarin, pinyin. */
+  mandarin: string
+  /** Cantonese, Jyutping. */
+  cantonese: string
+  /** A second Chinese name in circulation for the same group. */
+  alsoWritten?: { characters: string; mandarin: string }
+}
+
+export const SUIT_NAMING: Record<Suit, GroupNaming> = {
+  dots: {
+    english: 'Dots',
+    alsoCalled: ['Circles', 'Wheels', 'Coins'],
+    traditional: '筒子',
+    mandarin: 'tǒngzi',
+    cantonese: 'tung4 zi2',
+    alsoWritten: { characters: '餅子', mandarin: 'bǐngzi' },
+  },
+  bamboo: {
+    english: 'Bamboo',
+    alsoCalled: ['Sticks', 'Bams', 'Ropes'],
+    traditional: '索子',
+    mandarin: 'suǒzi',
+    cantonese: 'sok3 zi2',
+    alsoWritten: { characters: '條子 / 条子', mandarin: 'tiáozi' },
+  },
+  characters: {
+    english: 'Characters',
+    alsoCalled: ['Myriads', 'Cracks', 'Wan'],
+    traditional: '萬子',
+    simplified: '万子',
+    mandarin: 'wànzi',
+    cantonese: 'maan6 zi2',
+  },
+}
+
+export type HonourGroup = 'winds' | 'dragons' | 'flowers' | 'seasons'
+
+export const HONOUR_NAMING: Record<HonourGroup, GroupNaming> = {
+  winds: {
+    english: 'Winds',
+    alsoCalled: ['Directions'],
+    traditional: '風牌',
+    simplified: '风牌',
+    mandarin: 'fēngpái',
+    cantonese: 'fung1 paai2',
+  },
+  dragons: {
+    english: 'Dragons',
+    alsoCalled: ['Honours', 'Three Fundamentals'],
+    traditional: '三元牌',
+    mandarin: 'sānyuánpái',
+    cantonese: 'saam1 jyun4 paai2',
+  },
+  flowers: {
+    english: 'Flowers',
+    alsoCalled: ['Four Gentlemen'],
+    traditional: '四君子',
+    mandarin: 'sìjūnzi',
+    cantonese: 'sei3 gwan1 zi2',
+  },
+  seasons: {
+    english: 'Seasons',
+    alsoCalled: ['Four Seasons'],
+    traditional: '四季',
+    mandarin: 'sìjì',
+    cantonese: 'sei3 gwai3',
+  },
+}
+
+export const TILE_NAMING_SOURCING: Sourced = {
+  confidence: 'varies',
+  sources: ['https://en.wikipedia.org/wiki/Mahjong_tiles'],
+  note:
+    'Names and characters are from Wikipedia\'s tile article, whose Cantonese is given in Jyutping — a stricter scheme than the ad-hoc spellings used elsewhere in this app and at most Hong Kong tables, so the two will not always match letter for letter. Several groups genuinely carry two Chinese names (Dots are 筒子 or 餅子, Bamboo 索子 or 條子); both are given rather than one being picked.',
+}
+
 const SUIT_RECOGNITION: Record<Suit, (rank: number) => string> = {
   dots: (rank) => `Count the circles: ${rank}.`,
   bamboo: (rank) =>

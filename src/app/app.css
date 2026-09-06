@@ -1,25 +1,177 @@
 :root {
   color-scheme: dark;
-}
 
-html,
-body,
-#root {
-  height: 100%;
+  /*
+   * Safe-area insets, named once.
+   *
+   * The fallback matters: `env()` resolves to nothing at all on browsers
+   * without notch support, which makes any `calc()` using it invalid and
+   * silently drops the whole declaration. `env(x, 0px)` keeps the maths valid
+   * everywhere.
+   */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 body {
   margin: 0;
-  /* Keep the app clear of notches when the phone is on its side (spec §2). */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
   background: var(--mantine-color-dark-8);
-  overscroll-behavior: none;
 }
 
-/* Large tap targets — the device may be flat on the table (spec §2). */
-.section-tab {
-  min-height: 52px;
+/*
+ * THE DOCUMENT MUST BE THE THING THAT SCROLLS.
+ *
+ * Mobile Safari only collapses its address bar and tab strip when the DOCUMENT
+ * scrolls. Pinning `html, body, #root` to `height: 100%` and scrolling an inner
+ * container instead — which this file used to do, paired with a fixed-height
+ * ScrollArea — means the document never scrolls, so the browser chrome never
+ * goes away and permanently eats the vertical space this landscape-first
+ * layout needs. Hence: no height pinning anywhere, and no inner scroller.
+ */
+
+/*
+ * Safe areas must be applied to whatever actually touches the edge.
+ *
+ * `body { padding: env(...) }` looks like it should cover everything and does
+ * not: a `position: fixed` element is placed against the viewport, not against
+ * its padded ancestor. That is what put the old header and rail under the notch
+ * in landscape, and it is why the floating nav below sets its own insets rather
+ * than inheriting any.
+ */
+.app-main {
+  /*
+   * A SCROLL RUNWAY, so mobile Safari can collapse its chrome.
+   *
+   * Safari only hides the address bar when the document scrolls, and a section
+   * whose content is shorter than the viewport gives it nothing to scroll —
+   * so the bars stay up on exactly the short pages where the space is most
+   * missed. Guaranteeing the document outruns the viewport by a little keeps
+   * the behaviour consistent across sections.
+   *
+   * `dvh` rather than `vh`: `vh` is the bar-collapsed height, so using it here
+   * would size the runway against a viewport the user cannot see yet.
+   */
+  min-height: calc(100dvh + 140px);
+  padding: calc(var(--mantine-spacing-sm) + var(--safe-top))
+    calc(var(--mantine-spacing-sm) + var(--safe-right))
+    calc(var(--mantine-spacing-sm) + var(--safe-bottom))
+    calc(var(--mantine-spacing-sm) + var(--safe-left));
+  /*
+   * Both floating controls sit over the content, so it needs room to clear
+   * them rather than starting or ending underneath. The tracker is upper left,
+   * the section menu lower left.
+   */
+  padding-top: calc(64px + var(--safe-top));
+  padding-bottom: calc(88px + var(--safe-bottom));
+}
+
+/*
+ * The floating section nav — lower left, clear of the cutout in landscape and
+ * of the home indicator.
+ */
+.nav-fab {
+  position: fixed;
+  /* Mantine's numeric `size` did not land at 56, and this is a target tapped
+     mid-hand, one-handed, often without looking. Pin it. */
+  width: 56px;
+  height: 56px;
+  left: calc(var(--mantine-spacing-md) + var(--safe-left));
+  bottom: calc(var(--mantine-spacing-md) + var(--safe-bottom));
+  z-index: 200;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 45%);
+}
+
+/*
+ * The floating round tracker — upper left. Whose deal it is and what wind you
+ * are is needed from every screen, so it travels with the viewport.
+ */
+.round-fab {
+  position: fixed;
+  top: calc(var(--mantine-spacing-md) + var(--safe-top));
+  left: calc(var(--mantine-spacing-md) + var(--safe-left));
+  z-index: 200;
+  padding: 6px 12px;
+  border-radius: var(--mantine-radius-xl);
+  background: var(--mantine-color-dark-6);
+  border: 1px solid var(--mantine-color-dark-4);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 45%);
+}
+
+.round-fab-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--mantine-color-dark-4);
+}
+
+/*
+ * The table, drawn from your chair: you at the bottom, the player who goes next
+ * on your right. A named-area grid rather than absolute positioning, so each
+ * seat keeps its place whatever the labels grow to.
+ */
+.table-diagram {
+  display: grid;
+  grid-template-areas:
+    ". across ."
+    "left centre right"
+    ". me .";
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  align-items: stretch;
+}
+
+/*
+ * Scores are read while looking at the people they belong to, so the running
+ * totals use the same table layout as the round tracker rather than a row of
+ * cards. These seats hold more, so they are taller.
+ */
+.table-seat--score {
+  min-height: 88px;
+  gap: 2px;
+}
+
+.table-seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 56px;
+  padding: 6px 4px;
+  text-align: center;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-dark-6);
+  border: 1px solid transparent;
+}
+
+.table-seat[data-me] {
+  border-color: var(--mantine-color-jade-6);
+  background: var(--mantine-color-dark-5);
+}
+
+.table-seat[data-dealer] {
+  background: var(--mantine-color-jade-9);
+}
+
+.table-centre {
+  grid-area: centre;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--mantine-radius-sm);
+  border: 1px dashed var(--mantine-color-dark-4);
+  padding: 4px;
+}
+
+/*
+ * Never lock the page with `position: fixed` on body. It collapses the
+ * document's scroll height, which makes Safari put its chrome straight back —
+ * the scroll lock and the fullscreen are lost in the same line.
+ */
+html,
+body {
+  overscroll-behavior: none;
 }
 
 /* Horizontal strips of tiles scroll inside themselves rather than the page. */

@@ -1,5 +1,9 @@
 /**
- * Turn flow: seating, dealing, the wall, and the wind trackers (spec §4.1).
+ * Turn flow: the turn loop and the wind trackers (spec §4.1).
+ *
+ * Seating, wall building and dealing live in `setup.ts` — they are a different
+ * activity with a different audience moment, and keeping them here made the
+ * turn loop harder to find mid-hand.
  *
  * Sources consulted:
  * - https://www.coololdgames.com/tile-games/mahjong/hong-kong/
@@ -81,55 +85,6 @@ export const OFF_TURN_ACTIONS: readonly TurnStep[] = [
   },
 ]
 
-export interface WallStep {
-  id: string
-  title: string
-  detail: string
-}
-
-/**
- * Building and breaking the wall. Dice conventions are one of the most
- * variable parts of the game — this is the common Hong Kong procedure and is
- * flagged as such in the UI.
- */
-export const WALL_SEQUENCE: readonly WallStep[] = [
-  {
-    id: 'build',
-    title: 'Build four walls',
-    detail: 'Each player stacks their tiles two high in front of them, then pushes the wall forward into a square.',
-  },
-  {
-    id: 'roll',
-    title: 'Dealer rolls the dice',
-    detail: 'Count that many players counter-clockwise, starting with the dealer as 1. That player\'s wall gets broken.',
-  },
-  {
-    id: 'count',
-    title: 'Count in from the right end',
-    detail: 'On the chosen wall, count the same number of stacks in from the right-hand end. Break the wall there.',
-  },
-  {
-    id: 'deal',
-    title: 'Deal from the break, moving right',
-    detail: 'Deal four tiles at a time to each player, three times around (12 tiles each), then one more each. The dealer takes one extra to start.',
-  },
-  {
-    id: 'backfill',
-    title: 'Replacements come from the other end',
-    detail: 'Flower and kong replacement tiles are drawn from the BACK of the wall — the tail end, not the live end.',
-  },
-]
-
-export const WALL_SOURCING: Sourced = {
-  confidence: 'varies',
-  sources: [
-    'https://www.coololdgames.com/tile-games/mahjong/hong-kong/',
-    'https://mahjongbritishrules.wordpress.com/the-game/playing-the-game/',
-  ],
-  note:
-    'Dice count conventions differ: some tables roll twice, some count stacks from the left, some deal the dealer\'s 14th tile by jumping ahead. The break point does not affect fairness — pick one and be consistent.',
-}
-
 // ---------------------------------------------------------------------------
 // Round and seat wind tracker
 // ---------------------------------------------------------------------------
@@ -143,6 +98,17 @@ export interface RoundState {
   dealerStreak: number
   /** Hands completed in this round so far. */
   handNumber: number
+  /**
+   * The seat that dealt the first hand of the current round.
+   *
+   * The round wind advances when the deal comes back around to this seat — NOT
+   * when it reaches seat 0. Those are the same thing only when the game happens
+   * to start with seat 0 dealing; start anywhere else and hardcoding 0 ends the
+   * round early (starting at seat 2, the East round would end after seats 2 and
+   * 3 had dealt), which puts every later round wind wrong and mis-scores every
+   * hand that counts one.
+   */
+  roundStartSeat: number
 }
 
 export const INITIAL_ROUND: RoundState = {
@@ -150,6 +116,7 @@ export const INITIAL_ROUND: RoundState = {
   dealerSeat: 0,
   dealerStreak: 0,
   handNumber: 1,
+  roundStartSeat: 0,
 }
 
 /** Seat wind for a given seat, relative to who is currently dealing. */
@@ -196,15 +163,19 @@ export function advanceRound(
   }
 
   const nextDealer = nextSeat(state.dealerSeat)
-  // The round wind advances when the deal returns to the seat that started
-  // the round — i.e. when the deal passes all the way around the table.
-  const roundAdvances = nextDealer === 0
+  // The round wind advances when the deal returns to the seat that started the
+  // round — the deal has then passed all the way around the table. Comparing
+  // against seat 0 instead would end the round early whenever the game started
+  // anywhere but seat 0.
+  const roundStartSeat = state.roundStartSeat ?? 0
+  const roundAdvances = nextDealer === roundStartSeat
   const roundIndex = WIND_ORDER.indexOf(state.roundWind)
   return {
     roundWind: roundAdvances ? WIND_ORDER[(roundIndex + 1) % 4]! : state.roundWind,
     dealerSeat: nextDealer,
     dealerStreak: 0,
     handNumber: state.handNumber + 1,
+    roundStartSeat,
   }
 }
 
